@@ -1,0 +1,18 @@
+Haskell-Blake
+Kevin Cantu <me@kevincantu.org>
+May 2011
+
+
+This is an experimental attempt to implement one of the SHA-3 candidate
+algorithms in Haskell.
+
+
+NIST SHA-3:
+    http://en.wikipedia.org/wiki/NIST_hash_function_competition
+
+Blake website:
+    http://131002.net/blake/
+
+The Blake proposal: 
+    http://131002.net/blake/blake.pdf
+

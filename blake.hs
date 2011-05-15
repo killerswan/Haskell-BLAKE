@@ -90,7 +90,7 @@ blakeRound messageblock stateV r =
                     c'  = c + d' 
                     b'  = (b `xor` c') `rotate` (-12) 
                     a'' = a' + b' + (messageblock !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
-                                           (constants !! (sigma !! (r `mod` 10) !! (2*i)))) 
+                                       (constants !! (sigma !! (r `mod` 10) !! (2*i)))) 
                     d'' = (d' `xor` a'') `rotate` (-8) 
                     c'' = c' + d'' 
                     b'' = (b' `xor` c'') `rotate` (-7)
@@ -129,61 +129,55 @@ compress h s t m =
 
 
 
--- stream the reads // lazy reads
--- (check for errors...)
-
--- count lengths returned in a Word64
--- when last read, then pad using BIT length mod 512, etc.
--- i.e.
---      pad 1
---      pad 0 x (len `mod` 512 - 1)
---      pad 1
---      pad len
---
-
-adjust len = (447 - len) `mod` 512
-
-
-padded :: Word64 -> Word64
-padded len = (len + adjust len + 1 + 64)
-                    -- adjustment is by 1000000..
-
-
--- get 32 or 64 bit words
--- requires caller to specify type
--- i.e., call `from8toN 4 data :: [Word32]` or
---            `from8toN 8 data :: [Word64]`
---
--- This should be built-in.
--- A more serious way to handle this would be to create a class for
--- convertible-from-Word8, and make instances of it, etc.
---
+-- group bytes into larger words
+-- should be built-in?
+-- requires caller to specify type, e.g., from8toN 8 data :: [Word64]
 from8toN :: Bits a => Int -> [Word8] -> [a]
 from8toN mode words = 
-
     -- make one word
     let getWord os = if length os /= mode then
                             error "sorry, would have to pad this list to make words"
-                        else
+                     else
                             foldl f 0 os
 
             where f acc octet = (acc `shift` 8) + (fromIntegral octet)
     in
 
     -- make list of words
-    let accum acc []     = acc
-        accum acc octets = accum ((getWord (take mode octets)) : acc) 
-                                 (drop mode octets)
+    let loop acc []     = acc
+        loop acc octets = accum ((getWord (take mode octets)) : acc) 
+                                (drop mode octets)
     in
 
     -- fold into words
-    accum [] words
+    loop [] words
     
+{-
+-- padding as necessary...
+padded :: Word64 -> Word64
+padded len = (len + adjust len + 1 + 64)
+    where adjust len = (447 - len) `mod` 512
+                    -- adjustment is by 1000000..
+-}
 
+
+-- group by blocks of 16 32-bit words / 512 bits
+-- insert padding as necessary
+blocks :: B.ByteString -> [Word32]
+blocks s = 
+    
+    -- call compress
+    -- sometimes with a null t
+    -- padding when necessary
+    -- etc.
+
+
+-- temporary
 doStuff :: B.ByteString -> IO ()
 doStuff x = B.putStrLn x
 
 
+-- temporary
 main :: IO ()
 main = B.readFile "blake.hs" 
        >>= doStuff

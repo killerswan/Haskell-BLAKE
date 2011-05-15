@@ -60,10 +60,9 @@ replace newWords words =
     map f $ zip [0..] words
 
 
--- the round function
--- apply multiple G computations
--- for a single round
-blakeRound r messageblock stateV = 
+-- BLAKE-256 round function
+-- apply multiple G computations for a single round
+blakeRound messageblock stateV r = 
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
@@ -97,8 +96,9 @@ blakeRound r messageblock stateV =
                     b'' = (b' `xor` c'') `shift` (-7)
                 in
 
-                -- return
-                replace (zip [0..3] [a'', b'', c'', d'']) stateV
+                -- return a copy of the state list
+                -- with each of the computed cells replaced 
+                replace (zip cells [a'', b'', c'', d'']) stateV
         in
 
         foldl fG stateV g
@@ -120,21 +120,12 @@ compress h m s t =
     in
 
     -- do 14 rounds on this messageblock
-    let v' = foldl doBlakeRound v [0..13]
-                where doBlakeRound v r = blakeRound r m v
+    let v' = foldl (blakeRound m) v [0..13]
     in
 
     -- finalize
     zipWith4 xor4 h (s ++ s) (take 8 v') (drop 8 v')
                 where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
-
-    
-
-    
-              
-
-
-
 
 
 

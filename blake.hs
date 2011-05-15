@@ -57,6 +57,50 @@ replace newWords words =
     map f $ zip [0..] words
 
 
+-- the round function
+-- apply multiple G computations
+-- for a single round
+blakeRound r messageblock stateV = 
+
+        -- define each Gi in a round as (i, cell numbers)
+        -- TODO: when parallelizing, make this more complicated
+        let g = [ (0, [0,4,8,12]),   -- 4 columns
+                  (1, [1,5,9,13]), 
+                  (2, [2,6,10,14]), 
+                  (3, [3,7,11,15]), 
+                  (4, [0,5,10,15]),  -- 4 diagonals
+                  (5, [1,6,11,12]), 
+                  (6, [2,7,8,13]), 
+                  (7, [3,4,9,14]) ] 
+        in
+
+        -- perform a given Gi within the round function
+        let fG stateV (i,cells) =
+                -- a-d
+                let [a,b,c,d] = map getCell cells
+                     where getCell i = (stateV !! (cells !! i))
+                in
+            
+                -- compute the round
+                let a'  = a  + b  + (messageblock !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
+                                       (constants !! (sigma !! (r `mod` 10) !! (2*i + 1))))
+                    d'  = (d `xor` a') `shift` (-16) 
+                    c'  = c + d' 
+                    b'  = (b `xor` c') `shift` (-12) 
+                    a'' = a' + b' + (messageblock !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
+                                           (constants !! (sigma !! (r `mod` 10) !! (2*i)))) 
+                    d'' = (d' `xor` a'') `shift` (-8) 
+                    c'' = c' + d'' 
+                    b'' = (b' `xor` c'') `shift` (-7)
+                in
+
+                -- return
+                replace (zip [0..3] [a'', b'', c'', d'']) stateV
+        in
+
+        foldl fG stateV g
+
+
 -- BLAKE-256 compression
 -- h is a chain         0-7
 -- m is a message block 0-15
@@ -73,47 +117,9 @@ compress h m s t =
     -- should probably be more verbose, not less
     let v = (++) h $ zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
     in
-
     
-    let fRound r messageblock stateV = 
 
-            -- sequence changed in each i of a round
-            let g = [ (0, [0,4,8,12]),   -- 4 columns
-                      (1, [1,5,9,13]), 
-                      (2, [2,6,10,14]), 
-                      (3, [3,7,11,15]), 
-                      (4, [0,5,10,15]),  -- 4 diagonals
-                      (5, [1,6,11,12]), 
-                      (6, [2,7,8,13]), 
-                      (7, [3,4,9,14]) ] 
-            in
-
-            let fG stateV (i,cells) =
-                    -- a-d
-                    let [a,b,c,d] = map getCell cells
-                         where getCell i = (stateV !! (cells !! i))
-                    in
-                
-                    -- compute the round
-                    let a'  = a  + b  + (messageblock !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
-                                           (constants !! (sigma !! (r `mod` 10) !! (2*i + 1)))) in
-                    let d'  = (d `xor` a') `shift` (-16) in
-                    let c'  = c + d' in
-                    let b'  = (b `xor` c') `shift` (-12) in
-                    let a'' = a' + b' + (messageblock !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
-                                           (constants !! (sigma !! (r `mod` 10) !! (2*i)))) in
-                    let d'' = (d' `xor` a'') `shift` (-8) in
-                    let c'' = c' + d'' in
-                    let b'' = (b' `xor` c'') `shift` (-7) in
-
-                    -- return
-                    replace (zip [0..3] [a'', b'', c'', d'']) stateV
-            in
-
-            foldl fG stateV g
-    in
-
-
+    -- blakeRound r messageblock stateV
 
 
 

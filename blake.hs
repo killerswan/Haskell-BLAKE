@@ -19,14 +19,14 @@ iv = [ 0x6a09e667, 0xbb67ae85,
 
 -- BLAKE-256 constants
 --c :: [Word64]
-c = [ 0x243f6a88, 0x85a308d3,
-      0x13198a2e, 0x03707344,
-      0xa4093822, 0x299f31d0,
-      0x082efa98, 0xec4e6c89,
-      0x452821e6, 0x38d01377,
-      0xbe5466cf, 0x34e90c6c,
-      0xc0ac29b7, 0xc97cd0dd,
-      0x3f84d5b5, 0xb5470917 ]
+constants = [ 0x243f6a88, 0x85a308d3,
+              0x13198a2e, 0x03707344,
+              0xa4093822, 0x299f31d0,
+              0x082efa98, 0xec4e6c89,
+              0x452821e6, 0x38d01377,
+              0xbe5466cf, 0x34e90c6c,
+              0xc0ac29b7, 0xc97cd0dd,
+              0x3f84d5b5, 0xb5470917 ]
 
 -- BLAKE-256 permutations of 0 to 15
 --sigma :: [[Word64]]
@@ -71,45 +71,49 @@ compress h m s t =
     -- 16 word state
     --v :: [[WordX]]
     -- should probably be more verbose, not less
-    let v = (++) h $ zipWith (.|.) (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 c)
+    let v = (++) h $ zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
     in
 
     
-    -- sequence changed in each round
-    -- columns
-    let ga = [ (0, [0,4,8,12]), 
-               (1, [1,5,9,13]), 
-               (2, [2,6,10,14]), 
-               (3, [3,7,11,15]) ] 
-    in
-    -- diagonals
-    let gb = [ (4, [0,5,10,15]), 
-               (5, [1,6,11,12]), 
-               (6, [2,7,8,13]), 
-               (7, [3,4,9,14]) ] 
+    -- sequence changed in each i of a round
+    let g = [ (0, [0,4,8,12]),   -- 4 columns
+              (1, [1,5,9,13]), 
+              (2, [2,6,10,14]), 
+              (3, [3,7,11,15]), 
+              (4, [0,5,10,15]),  -- 4 diagonals
+              (5, [1,6,11,12]), 
+              (6, [2,7,8,13]), 
+              (7, [3,4,9,14]) ] 
     in
 
-    let round i cells v =
+    let fG r m (i,cells) v =
             -- a-d
             let [a,b,c,d] = map getCell cells
                  where getCell i = (v !! (cells !! i))
             in
         
-            ""
-{-
-
             -- compute the round
-            let a' = a + b + (M sigma r (2i)) .|. (c sigma r (2i+1)) 
-            
-       
-         
-        
+            -- '
+            let a' = a + b + (m !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
+                     (constants !! (sigma !! (r `mod` 10) !! (2*i + 1))) ) in
+            let d' = (d `xor` a') `shift` (-16) in
+            let c' = c + d' in
+            let b' = (b `xor` c') `shift` (-12) in
+            -- ''
+            let a'' = a' + b' + (m !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
+                        (constants !! (sigma !! (r `mod` 10) !! (2*i))) ) in
+            let d'' = (d' `xor` a'') `shift` (-8) in
+            let c'' = c' + d'' in
+            let b'' = (b' `xor` c'') `shift` (-7) in
 
             -- return
             replace (zip [0..3] [a'', b'', c'', d'']) v
-            
--}
     in
+
+    let fRound r m v = 
+            foldl (\v gn -> fG r m gn v) [] v
+    in
+
 
 
 

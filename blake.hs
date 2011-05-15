@@ -149,29 +149,35 @@ padded len = (len + adjust len + 1 + 64)
                     -- adjustment is by 1000000..
 
 
--- get 32 bit words
-fromByteString32 :: B.ByteString -> [Word32]
-fromByteString32 b = 
+-- get 32 or 64 bit words
+-- requires caller to specify type
+-- i.e., call `from8toN 4 data :: [Word32]` or
+--            `from8toN 8 data :: [Word64]`
+--
+-- This should be built-in.
+-- A more serious way to handle this would be to create a class for
+-- convertible-from-Word8, and make instances of it, etc.
+--
+from8toN :: Bits a => Int -> [Word8] -> [a]
+from8toN mode words = 
 
-    -- make one 32 bit word
-    let fromOctets :: [Word8] -> Word32
-        fromOctets os = if length os /= 4 then
-                            error "would have to pad to make 32 bit word"
+    -- make one word
+    let getWord os = if length os /= mode then
+                            error "sorry, would have to pad this list to make words"
                         else
                             foldl f 0 os
 
             where f acc octet = (acc `shift` 8) + (fromIntegral octet)
     in
 
-    -- make list of 32 bit words
-    let accum32 :: [Word32] -> [Word8] -> [Word32]
-        accum32 acc []     = acc
-        accum32 acc os = accum32 ((fromOctets (take 4 os)) : acc) 
-                                 (drop 4 os)
+    -- make list of words
+    let accum acc []     = acc
+        accum acc octets = accum ((getWord (take mode octets)) : acc) 
+                                 (drop mode octets)
     in
 
-    -- fold the whole unpacked ByteString into 32 bit words
-    accum32 [] (B.unpack b)
+    -- fold into words
+    accum [] words
     
 
 doStuff :: B.ByteString -> IO ()

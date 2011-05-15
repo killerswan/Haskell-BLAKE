@@ -110,6 +110,8 @@ blakeRound r messageblock stateV =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
+-- 
+-- TODO: fix this type?
 compress :: [Word64] -> [Word64] -> [Word64] -> [Word64] -> [Word64]
 compress h m s t =
 
@@ -119,13 +121,12 @@ compress h m s t =
 
     -- do 14 rounds on this messageblock
     let v' = foldl doBlakeRound v [0..13]
-            where doBlakeRound v r = blakeRound r m v
+                where doBlakeRound v r = blakeRound r m v
     in
 
     -- finalize
-    let v'' = zipWith4 (\hh ss vv1 vv2 -> hh `xor` ss `xor` vv1 `xor` vv2) h (s ++ s) (take 8 v') (drop 8 v')
-    in
-    v''
+    zipWith4 xor4 h (s ++ s) (take 8 v') (drop 8 v')
+                where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
 
     
 

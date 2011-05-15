@@ -75,43 +75,42 @@ compress h m s t =
     in
 
     
-    -- sequence changed in each i of a round
-    let g = [ (0, [0,4,8,12]),   -- 4 columns
-              (1, [1,5,9,13]), 
-              (2, [2,6,10,14]), 
-              (3, [3,7,11,15]), 
-              (4, [0,5,10,15]),  -- 4 diagonals
-              (5, [1,6,11,12]), 
-              (6, [2,7,8,13]), 
-              (7, [3,4,9,14]) ] 
-    in
+    let fRound r messageblock stateV = 
 
-    let fG r m (i,cells) v =
-            -- a-d
-            let [a,b,c,d] = map getCell cells
-                 where getCell i = (v !! (cells !! i))
+            -- sequence changed in each i of a round
+            let g = [ (0, [0,4,8,12]),   -- 4 columns
+                      (1, [1,5,9,13]), 
+                      (2, [2,6,10,14]), 
+                      (3, [3,7,11,15]), 
+                      (4, [0,5,10,15]),  -- 4 diagonals
+                      (5, [1,6,11,12]), 
+                      (6, [2,7,8,13]), 
+                      (7, [3,4,9,14]) ] 
             in
-        
-            -- compute the round
-            -- '
-            let a' = a + b + (m !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
-                     (constants !! (sigma !! (r `mod` 10) !! (2*i + 1))) ) in
-            let d' = (d `xor` a') `shift` (-16) in
-            let c' = c + d' in
-            let b' = (b `xor` c') `shift` (-12) in
-            -- ''
-            let a'' = a' + b' + (m !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
-                        (constants !! (sigma !! (r `mod` 10) !! (2*i))) ) in
-            let d'' = (d' `xor` a'') `shift` (-8) in
-            let c'' = c' + d'' in
-            let b'' = (b' `xor` c'') `shift` (-7) in
 
-            -- return
-            replace (zip [0..3] [a'', b'', c'', d'']) v
-    in
+            let fG stateV (i,cells) =
+                    -- a-d
+                    let [a,b,c,d] = map getCell cells
+                         where getCell i = (stateV !! (cells !! i))
+                    in
+                
+                    -- compute the round
+                    let a'  = a  + b  + (messageblock !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
+                                           (constants !! (sigma !! (r `mod` 10) !! (2*i + 1)))) in
+                    let d'  = (d `xor` a') `shift` (-16) in
+                    let c'  = c + d' in
+                    let b'  = (b `xor` c') `shift` (-12) in
+                    let a'' = a' + b' + (messageblock !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
+                                           (constants !! (sigma !! (r `mod` 10) !! (2*i)))) in
+                    let d'' = (d' `xor` a'') `shift` (-8) in
+                    let c'' = c' + d'' in
+                    let b'' = (b' `xor` c'') `shift` (-7) in
 
-    let fRound r m v = 
-            foldl (\v gn -> fG r m gn v) [] v
+                    -- return
+                    replace (zip [0..3] [a'', b'', c'', d'']) stateV
+            in
+
+            foldl fG stateV g
     in
 
 

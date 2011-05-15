@@ -6,16 +6,18 @@
 
 import Data.Bits
 import Data.Word
-import Data.Maybe -- not necessary?
+import Data.List -- needed for zipWith4
+import Data.Maybe -- needed for isJust, fromJust
 import qualified Data.ByteString as B
 
 
 -- BLAKE-256 initial values
 --iv :: [Word64]
-iv = [ 0x6a09e667, 0xbb67ae85,
+initialValues = [ 0x6a09e667, 0xbb67ae85,
        0x3c6ef372, 0xa54ff53a,
        0x510e527f, 0x9b05688c,
        0x1f83d9ab, 0x5be0cd19 ]
+
 
 -- BLAKE-256 constants
 --c :: [Word64]
@@ -27,6 +29,7 @@ constants = [ 0x243f6a88, 0x85a308d3,
               0xbe5466cf, 0x34e90c6c,
               0xc0ac29b7, 0xc97cd0dd,
               0x3f84d5b5, 0xb5470917 ]
+
 
 -- BLAKE-256 permutations of 0 to 15
 --sigma :: [[Word64]]
@@ -107,27 +110,26 @@ blakeRound r messageblock stateV =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress :: [Word64] -> [Word64] -> [Word64] -> [Word64] -> [Char]
+compress :: [Word64] -> [Word64] -> [Word64] -> [Word64] -> [Word64]
 compress h m s t =
 
-
-    -- initialization
-    -- 16 word state
-    --v :: [[WordX]]
-    -- should probably be more verbose, not less
+    -- initialize state, 16 words
     let v = (++) h $ zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
     in
+
+    -- do 14 rounds on this messageblock
+    let v' = foldl doBlakeRound v [0..13]
+            where doBlakeRound v r = blakeRound r m v
+    in
+
+    -- finalize
+    let v'' = zipWith4 (\hh ss vv1 vv2 -> hh `xor` ss `xor` vv1 `xor` vv2) h (s ++ s) (take 8 v') (drop 8 v')
+    in
+    v''
+
     
 
-    -- blakeRound r messageblock stateV
-
-
-
-    ""
-               
-
     
-              
               
 
 

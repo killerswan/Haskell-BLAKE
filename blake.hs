@@ -47,16 +47,38 @@ sigma = [[ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 ],
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress h m s t = ""
+compress :: [Word64] -> [Word64] -> [Word64] -> [Word64] -> [Char]
+compress h m s t =
 
 
-{-
-    -- BLAKE-256 initialization
+    -- initialization
     -- 16 word state
     --v :: [[WordX]]
-    let v = [ take 4 h,
-              drop 4 h,
--}
+    -- should probably be more verbose, not less
+    let v = (++) h $ zipWith (.|.) (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 c)
+    in
+
+    
+    -- sequence changed in each round
+    let g = [ (0,4,8,12), (1,5,9,13), (2,6,10,14), (3,7,11,15),  -- columns
+              (0,5,10,15), (1,6,11,12), (2,7,8,13), (3,4,9,14) ] -- diagonals
+    in
+
+    let round (a,b,c,d) v = ""
+
+
+
+    in
+
+
+
+
+
+    ""
+               
+
+    
+              
               
 
 

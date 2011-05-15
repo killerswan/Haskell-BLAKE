@@ -6,6 +6,7 @@
 
 import Data.Bits
 import Data.Word
+import Data.Maybe -- not necessary?
 import qualified Data.ByteString as B
 
 
@@ -41,6 +42,21 @@ sigma = [[ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 ],
          [ 10,2,8,4,7,6,1,5,15,11,9,14,3,12,13,0 ]]
 
 
+-- replace items in a list
+replace :: [(Int, a)] -> [a] -> [a]
+replace newWords words = 
+    let f (i, word) =  
+            let newWord = lookup i newWords
+            in
+
+            if isJust newWord then
+                fromJust newWord
+            else
+                word
+    in
+    map f $ zip [0..] words
+
+
 -- BLAKE-256 compression
 -- h is a chain         0-7
 -- m is a message block 0-15
@@ -60,16 +76,40 @@ compress h m s t =
 
     
     -- sequence changed in each round
-    let g = [ (0,4,8,12), (1,5,9,13), (2,6,10,14), (3,7,11,15),  -- columns
-              (0,5,10,15), (1,6,11,12), (2,7,8,13), (3,4,9,14) ] -- diagonals
+    -- columns
+    let ga = [ (0, [0,4,8,12]), 
+               (1, [1,5,9,13]), 
+               (2, [2,6,10,14]), 
+               (3, [3,7,11,15]) ] 
+    in
+    -- diagonals
+    let gb = [ (4, [0,5,10,15]), 
+               (5, [1,6,11,12]), 
+               (6, [2,7,8,13]), 
+               (7, [3,4,9,14]) ] 
     in
 
-    let round (a,b,c,d) v = ""
+    let round i cells v =
+            -- a-d
+            let [a,b,c,d] = map getCell cells
+                 where getCell i = (v !! (cells !! i))
+            in
+        
+            ""
+{-
 
+            -- compute the round
+            let a' = a + b + (M sigma r (2i)) .|. (c sigma r (2i+1)) 
+            
+       
+         
+        
 
-
+            -- return
+            replace (zip [0..3] [a'', b'', c'', d'']) v
+            
+-}
     in
-
 
 
 

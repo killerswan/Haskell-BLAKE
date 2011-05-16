@@ -113,7 +113,7 @@ blakeRound messageblock stateV r =
 -- 
 -- TODO: fix this type?
 compress :: [Word32] -> [Word32] -> [Word32] -> [Word32] -> [Word32]
-compress h s t m =
+compress h m s t =
 
     -- initialize state, 16 words
     let v = (++) h $ zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
@@ -131,7 +131,6 @@ compress h s t m =
 
 -- group bytes into larger words
 -- should be built-in?
--- requires caller to specify type, e.g., from8toN 8 data :: [Word64]
 from8toN :: Bits a => Int -> [Word8] -> [a]
 from8toN mode words = 
     -- make one word
@@ -145,26 +144,97 @@ from8toN mode words =
 
     -- make list of words
     let loop acc []     = acc
-        loop acc octets = accum ((getWord (take mode octets)) : acc) 
-                                (drop mode octets)
+        loop acc octets = loop (acc ++ [getWord (take mode octets)])  -- TODO ASAP: master HUnit?
+                               (drop mode octets)
     in
 
     -- fold into words
     loop [] words
+
+from8to32 :: [Word8] -> [Word32]
+from8to32 = from8toN 4
+
+from8to64 :: [Word8] -> [Word64]
+from8to64 = from8toN 8
+
+from64to32 :: [Word64] -> [Word32]
+from64to32 ws = foldl f [] ws
+    where f acc word64 = acc ++ (fromIntegral word64) `shift` (-32) : (fromIntegral word64) : [] 
     
-{-
+    
+    
 -- padding as necessary...
-padded :: Word64 -> Word64
-padded len = (len + adjust len + 1 + 64)
-    where adjust len = (447 - len) `mod` 512
-                    -- adjustment is by 1000000..
--}
+padded len = ((len + adjustment + 64), extra)
+    where adjustment = (448 - len) `mod` 512
+          extra = if adjustment > 448 then True
+                  else False
+                    -- adjustment is by 10000...0001
+                    -- with 0 <= number of zeroes <= 511
 
 
 -- group by blocks of 16 32-bit words / 512 bits
 -- insert padding as necessary
-blocks :: B.ByteString -> [Word32]
-blocks s = 
+type MessageBlock = [Word32]
+type Counter = [Word32]
+blocks :: Word64 -> [Word8] -> [( Counter, MessageBlock )]
+blocks totalBits s = 
+
+    -- do this before calling blocks?
+    -- let s8 = B.unpack s
+
+    let next = take 64 s
+    in
+
+    let bitLength = 8 * length next
+    in
+    
+    let totalBits' = totalBits + fromIntegral bitLength
+    in
+
+    -- if the whole thing is 0 `mod` 512
+    -- the last block will be []
+    -- but we should append zeroes and a bit count
+    let lastBlock = if length next < 64 
+               then True
+               else False
+    in
+
+    if not lastBlock
+    then
+        [( from8to32 next, from64to32 [totalBits] )] 
+    else
+        let zeroes = (446 - bitLength) `mod` 512
+        in
+        let simplePadding z 
+                -- so as a practical matter, the adjustment must be one byte or more
+                | (z + 2) `mod` 8 /= 0 = error "padding needed is wrong: not 0 `mod` 8"
+                -- one byte
+                | z + 2 == 8 = [0x81]
+                -- more bytes
+                | z + 2 >  8 = [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
+                    where zerobytes = (z - 7 - 7) `div` 8
+        in
+        let result = from8to32 (next ++ simplePadding zeroes) ++ from64to32 [totalBits']
+        in
+    
+        if length result <= 16
+        then
+            [( result,         from64to32 [totalBits'] )]
+        else
+            [( take 16 result, from64to32 [totalBits'] ),
+             ( drop 16 result, [0,0] )]
+
+    
+    
+
+    
+
+
+
+
+
+
+    --if nextl == 0
     
     -- call compress
     -- sometimes with a null t
@@ -179,5 +249,9 @@ doStuff x = B.putStrLn x
 
 -- temporary
 main :: IO ()
-main = B.readFile "blake.hs" 
+main = B.readFile "blake.hs"
        >>= doStuff
+
+
+
+

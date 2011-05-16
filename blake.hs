@@ -203,18 +203,19 @@ blocks totalBits s =
     then
         [( from8to32 next, from64to32 [totalBits] )] 
     else
-        let zeroes = (446 - bitLength) `mod` 512
+        let zerobits = (446 - bitLength) `mod` 512
         in
+        -- this is hideous:
         let simplePadding z 
-                -- so as a practical matter, the adjustment must be one byte or more
+                -- as a practical matter, the adjustment must be one byte or more
                 | (z + 2) `mod` 8 /= 0 = error "padding needed is wrong: not 0 `mod` 8"
                 -- one byte
-                | z + 2 == 8 = [0x81]
+                | z == 6 = [0x81]
                 -- more bytes
-                | z + 2 >  8 = [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
+                | z > 6 = [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
                     where zerobytes = (z - 7 - 7) `div` 8
         in
-        let result = from8to32 (next ++ simplePadding zeroes) ++ from64to32 [totalBits']
+        let result = from8to32 (next ++ simplePadding zerobits) ++ from64to32 [totalBits']
         in
     
         if length result <= 16

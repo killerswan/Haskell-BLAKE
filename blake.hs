@@ -163,14 +163,6 @@ from64to32 ws = foldl f [] ws
     
     
     
--- padding as necessary...
-padded len = ((len + adjustment + 64), extra)
-    where adjustment = (448 - len) `mod` 512
-          extra = if adjustment > 448 then True
-                  else False
-                    -- adjustment is by 10000...0001
-                    -- with 0 <= number of zeroes <= 511
-
 
 -- group by blocks of 16 32-bit words / 512 bits
 -- insert padding as necessary
@@ -181,6 +173,7 @@ blocks totalBits s =
 
     -- do this before calling blocks?
     -- let s8 = B.unpack s
+
 
     let next = take 64 s
     in
@@ -199,31 +192,33 @@ blocks totalBits s =
                else False
     in
 
+    let counter32 = from64to32 [totalBits']
+    in
+
     if not lastBlock
     then
-        [( from8to32 next, from64to32 [totalBits] )] 
+        [( from8to32 next, counter32 )]
     else
-        let zerobits = (446 - bitLength) `mod` 512
+        let simplePadding = 
+                let zerobits  = (446 - bitLength) `mod` 512
+                in
+                let zerobytes = (zerobits - 7 - 7) `div` 8
+                in 
+                case zerobits of 
+                        -- as a practical matter, the adjustment must be one byte or more
+                        z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
+                        -- one byte
+                        z | z == 6 -> [0x81]
+                        -- more bytes
+                        z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
         in
-        -- this is hideous:
-        let simplePadding z 
-                -- as a practical matter, the adjustment must be one byte or more
-                | (z + 2) `mod` 8 /= 0 = error "padding needed is wrong: not 0 `mod` 8"
-                -- one byte
-                | z == 6 = [0x81]
-                -- more bytes
-                | z > 6 = [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
-                    where zerobytes = (z - 7 - 7) `div` 8
-        in
-        let result = from8to32 (next ++ simplePadding zerobits) ++ from64to32 [totalBits']
+        let final = from8to32 (next ++ simplePadding) ++ counter32
         in
     
-        if length result <= 16
-        then
-            [( result,         from64to32 [totalBits'] )]
-        else
-            [( take 16 result, from64to32 [totalBits'] ),
-             ( drop 16 result, [0,0] )]
+        case length final of
+            16 -> [( final, counter32 )]
+            32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
+            otherwise -> error "we have created a monster! padding --> nonsense"
 
     
     

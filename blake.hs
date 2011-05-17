@@ -67,20 +67,19 @@ blakeRound messageblock stateV r =
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
-        let g = zip [0..] [ [0,4,8,12],   -- 4 columns
-                            [1,5,9,13], 
-                            [2,6,10,14], 
-                            [3,7,11,15], 
-                            [0,5,10,15],  -- 4 diagonals
-                            [1,6,11,12], 
-                            [2,7,8,13], 
-                            [3,4,9,14] ] 
+        let g = [ [0,4,8,12],   -- 4 columns
+                  [1,5,9,13], 
+                  [2,6,10,14], 
+                  [3,7,11,15], 
+                  [0,5,10,15],  -- 4 diagonals
+                  [1,6,11,12], 
+                  [2,7,8,13], 
+                  [3,4,9,14] ] 
         in
 
         -- perform a given Gi within the round function
-        let fG stateV (i,cells) =
-                -- a-d
-                let [a,b,c,d] = map (stateV !!) cells
+        let fG v i = 
+                let [a,b,c,d] = map (v !!) (g !! i)
                 in
 
                 -- get sigma
@@ -100,10 +99,10 @@ blakeRound messageblock stateV r =
 
                 -- return a copy of the state list
                 -- with each of the computed cells replaced 
-                replace (zip cells [a'', b'', c'', d'']) stateV
+                replace (zip (g !! i) [a'', b'', c'', d'']) v
         in
 
-        foldl' fG stateV g
+        foldl' fG stateV [0..7]
 
 
 -- BLAKE-256 compression of one message block

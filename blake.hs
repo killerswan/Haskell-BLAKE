@@ -79,18 +79,19 @@ blakeRound messageblock stateV r =
         -- perform a given Gi within the round function
         let fG stateV (i,cells) =
                 -- a-d
-                let [a,b,c,d] = map getCell cells
-                     where getCell i = (stateV !! (cells !! i))
+                let [a,b,c,d] = map (stateV !!) cells
+                in
+
+                -- get sigma
+                let sigmaf n = sigma !! (r `mod` 10) !! n
                 in
             
                 -- compute the round
-                let a'  = a  + b  + (messageblock !! (sigma !! (r `mod` 10) !! (2*i)) `xor` 
-                                       (constants !! (sigma !! (r `mod` 10) !! (2*i + 1))))
+                let a'  = a  + b  + (messageblock !! sigmaf (2*i)) `xor` (constants !! sigmaf (2*i + 1))
                     d'  = (d `xor` a') `rotate` (-16) 
                     c'  = c + d' 
                     b'  = (b `xor` c') `rotate` (-12) 
-                    a'' = a' + b' + (messageblock !! (sigma !! (r `mod` 10) !! (2*i + 1)) `xor` 
-                                       (constants !! (sigma !! (r `mod` 10) !! (2*i)))) 
+                    a'' = a' + b' + (messageblock !! sigmaf (2*i + 1)) `xor` (constants !! sigmaf (2*i))
                     d'' = (d' `xor` a'') `rotate` (-8) 
                     c'' = c' + d'' 
                     b'' = (b' `xor` c'') `rotate` (-7)
@@ -104,7 +105,7 @@ blakeRound messageblock stateV r =
         foldl' fG stateV g
 
 
--- BLAKE-256 compression
+-- BLAKE-256 compression of one message block
 -- h is a chain         0-7
 -- m is a message block 0-15
 -- s is a salt          0-3
@@ -157,12 +158,6 @@ from8to32 = from8toN 4
 from8to64 :: [Word8] -> [Word64]
 from8to64 = from8toN 8
 
-from64to32 :: [Word64] -> [Word32]
-from64to32 ws = foldl' f [] ws
-    where f acc word64 = acc ++ (fromIntegral word64) `shift` (-32) : (fromIntegral word64) : [] 
-    
-    
-    
 
 -- 16 words
 type MessageBlock = [Word32]
@@ -175,6 +170,7 @@ type Counter = [Word32]
 -- BLAKE-256 padding
 -- blocks of 512 bits, padded, as 32 bit words 
 -- (tupled with counter words)
+--blocks :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
 blocks :: Word64 -> [Word8] -> [( Counter, MessageBlock )]
 blocks counter s = 
 
@@ -194,7 +190,9 @@ blocks counter s =
     in
 
     -- cumulative block length in bits as two 32 bit words
-    let counter32 = from64to32 [counter']
+    -- low:high:[]
+    let counter32 :: [Word32]
+        counter32 = fromIntegral counter' : fromIntegral (counter' `shift` (-32)) : []
     in
 
     -- all 512 bits?
@@ -228,6 +226,18 @@ blocks counter s =
         -- this is an ordinary message block, so recurse
         ( from8to32 next, counter32 ) : (blocks counter' (drop 64 s))
     
+
+
+
+blake256 message salt = 
+        let compress' s h (m,t) = compress h m s t
+        in
+        --foldl' (compress' s) initialValues $ blocks 0 $ B.unpack message -- B.readFile "blake.hs"
+        --OK? compress' [0..] [0..] ([0,0], [0..15])
+        --OK? compress' [0..3] initialValues ([0,0], [0..15])
+        --OK? compress' [0..3] initialValues $ head $ blocks 0 ([3,24,12,23,5,23,42,34,1,42,35,4,56,34,3,5,5,7])
+        --OK? compress' [0..3] initialValues $ head $ blocks 0 $ B.unpack message
+        foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
 
 
 

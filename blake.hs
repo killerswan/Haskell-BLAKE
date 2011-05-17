@@ -185,35 +185,37 @@ blocks counter s =
     let next = take 64 s
     in
 
-    -- block length in bits
-    -- (length is an Int)
-    let bitLen = 8 * length next
+    -- block length
+    let len = length next
     in
     
     -- cumulative block length in bits
-    let counter' = counter + fromIntegral bitLen
+    let counter' = counter + 8 * fromIntegral len
     in
 
     -- cumulative block length in bits as two 32 bit words
     let counter32 = from64to32 [counter']
     in
 
-    if bitLen < 512
+    -- all 512 bits?
+    if len < 64
     then
         -- this is the last message block (empty or partial)
         let simplePadding = 
-                let zerobits  = (446 - bitLen) `mod` 512
+                let zerobits  = (446 - 8 * len) `mod` 512
                 in
                 let zerobytes = (zerobits - 7 - 7) `div` 8
                 in 
                 case zerobits of 
                         -- as a practical matter, the adjustment must be one byte or more
+                        -- though I'm not sure that this is conformant
                         z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
                         -- one byte
                         z | z == 6 -> [0x81]
                         -- more bytes
                         z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
         in
+
         let final = from8to32 (next ++ simplePadding) ++ counter32
         in
     
@@ -227,19 +229,6 @@ blocks counter s =
         ( from8to32 next, counter32 ) : (blocks counter' (drop 64 s))
     
 
-    
-
-
-
-
-
-
-    --if nextl == 0
-    
-    -- call compress
-    -- sometimes with a null t
-    -- padding when necessary
-    -- etc.
 
 
 -- temporary
@@ -251,7 +240,6 @@ doStuff x = B.putStrLn x
 main :: IO ()
 main = B.readFile "blake.hs"
        >>= doStuff
-
 
 
 

@@ -164,43 +164,45 @@ from64to32 ws = foldl f [] ws
     
     
 
--- group by blocks of 16 32-bit words / 512 bits
--- insert padding as necessary
+-- 16 words
 type MessageBlock = [Word32]
+
+-- 2 words
+-- cumulative bit length
 type Counter = [Word32]
+
+
+-- BLAKE-256 padding
+-- blocks of 512 bits, padded, as 32 bit words 
+-- (tupled with counter words)
 blocks :: Word64 -> [Word8] -> [( Counter, MessageBlock )]
-blocks totalBits s = 
+blocks counter s = 
 
     -- do this before calling blocks?
     -- let s8 = B.unpack s
 
-
+    -- the next message block
     let next = take 64 s
     in
 
-    let bitLength = 8 * length next
+    -- block length in bits
+    -- (length is an Int)
+    let bitLen = 8 * length next
     in
     
-    let totalBits' = totalBits + fromIntegral bitLength
+    -- cumulative block length in bits
+    let counter' = counter + fromIntegral bitLen
     in
 
-    -- if the whole thing is 0 `mod` 512
-    -- the last block will be []
-    -- but we should append zeroes and a bit count
-    let lastBlock = if length next < 64 
-               then True
-               else False
+    -- cumulative block length in bits as two 32 bit words
+    let counter32 = from64to32 [counter']
     in
 
-    let counter32 = from64to32 [totalBits']
-    in
-
-    if not lastBlock
+    if bitLen < 512
     then
-        [( from8to32 next, counter32 )]
-    else
+        -- this is the last message block (empty or partial)
         let simplePadding = 
-                let zerobits  = (446 - bitLength) `mod` 512
+                let zerobits  = (446 - bitLen) `mod` 512
                 in
                 let zerobytes = (zerobits - 7 - 7) `div` 8
                 in 
@@ -219,8 +221,10 @@ blocks totalBits s =
             16 -> [( final, counter32 )]
             32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
             otherwise -> error "we have created a monster! padding --> nonsense"
-
     
+    else
+        -- this is an ordinary message block, so recurse
+        ( from8to32 next, counter32 ) : (blocks counter' (drop 64 s))
     
 
     

@@ -101,7 +101,7 @@ blakeRound messageblock stateV r =
                 replace (zip cells [a'', b'', c'', d'']) stateV
         in
 
-        foldl fG stateV g
+        foldl' fG stateV g
 
 
 -- BLAKE-256 compression
@@ -120,7 +120,7 @@ compress h m s t =
     in
 
     -- do 14 rounds on this messageblock
-    let v' = foldl (blakeRound m) v [0..13]
+    let v' = foldl' (blakeRound m) v [0..13]
     in
 
     -- finalize
@@ -137,7 +137,7 @@ from8toN mode words =
     let getWord os = if length os /= mode then
                             error "sorry, would have to pad this list to make words"
                      else
-                            foldl f 0 os
+                            foldl' f 0 os
 
             where f acc octet = (acc `shift` 8) + (fromIntegral octet)
     in
@@ -158,7 +158,7 @@ from8to64 :: [Word8] -> [Word64]
 from8to64 = from8toN 8
 
 from64to32 :: [Word64] -> [Word32]
-from64to32 ws = foldl f [] ws
+from64to32 ws = foldl' f [] ws
     where f acc word64 = acc ++ (fromIntegral word64) `shift` (-32) : (fromIntegral word64) : [] 
     
     

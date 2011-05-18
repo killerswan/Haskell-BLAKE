@@ -121,9 +121,11 @@ blakeRound messageblock state round =
 
 
 -- initial 16 word state for compressing a block
+-- here, my counter 't' contains [high,low] words 
+-- rather than reverse it in `blocks` below, i changed the numbering here
 initialState h s t = 
     h ++ 
-    zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
+    zipWith xor (s ++ [t!!1, t!!1, t!!0, t!!0]) (take 8 constants)
 
 
 -- BLAKE-256 compression of one message block
@@ -188,26 +190,20 @@ type Counter = [Word32]
 {- OK:
 -}
 blocks :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
-blocks counter s = 
+blocks counter message = 
 
-    -- do this before calling blocks?
-    -- let s8 = B.unpack s
+    let 
+        -- the next message block
+        next = take 64 message
 
-    -- the next message block
-    let next = take 64 s
-    in
+        -- block length
+        len = length next
 
-    -- block length
-    let len = length next
-    in
-    
-    -- cumulative block length in bits
-    let counter' = counter + 8 * fromIntegral len
-    in
+        -- cumulative block length in bits
+        counter' = counter + 8 * fromIntegral len
 
-    -- cumulative block length in bits as two 32 bit words
-    -- low:high:[]
-    let counter32 :: [Word32]
+        -- cumulative block length in bits as two 32 bit words
+        counter32 :: [Word32]
         counter32 = fromIntegral (counter' `shift` (-32)) : fromIntegral counter' : []
     in
 
@@ -217,8 +213,7 @@ blocks counter s =
         -- this is the last message block (empty or partial)
         let simplePadding = 
                 let zerobits  = (446 - 8 * len) `mod` 512
-                in
-                let zerobytes = (zerobits - 7 - 7) `div` 8
+                    zerobytes = (zerobits - 7 - 7) `div` 8
                 in 
                 case zerobits of 
                         -- as a practical matter, the adjustment must be one byte or more
@@ -228,19 +223,18 @@ blocks counter s =
                         z | z == 6 -> [0x81]
                         -- more bytes
                         z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
-        in
 
-        let final = from8to32 (next ++ simplePadding) ++ counter32
+            final = from8to32 (next ++ simplePadding) ++ counter32
         in
     
         case length final of
-            16 -> [( final, reverse counter32 )]
-            32 -> [( take 16 final, reverse counter32 ), ( drop 16 final, [0,0] )]
+            16 -> [( final, counter32 )]
+            32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
             otherwise -> error "we have created a monster! padding --> nonsense"
     
     else
         -- this is an ordinary message block, so recurse
-        ( from8to32 next, reverse counter32 ) : (blocks counter' (drop 64 s))
+        ( from8to32 next, counter32 ) : (blocks counter' (drop 64 message))
     
 
 -- BLAKE-256
@@ -294,13 +288,13 @@ test_blocks1 = assert "message padding into blocks, 8 zeroes"
                 [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
                     0x00000000, 0x00000000, 0x00000000, 0x00000000,
                     0x00000000, 0x00000000, 0x00000000, 0x00000000, 
-                    0x00000000, 0x00000001, 0x00000000, 0x00000008], [8,0])]
+                    0x00000000, 0x00000001, 0x00000000, 0x00000008], [0,8])]
 
 
 test_blocks2 = assert "message padding into blocks, 567 zeroes" 
                 (blocks 0 $ take 72 $ repeat 0)
-                [((take 16 $ repeat 0),                            [0x200,0]),
-                 ([0,0,0x80000000, 0,0,0,0,0,0,0,0,0,0,1,0,0x240], [0x240,0])]
+                [((take 16 $ repeat 0),                            [0,0x200]),
+                 ([0,0,0x80000000, 0,0,0,0,0,0,0,0,0,0,1,0,0x240], [0,0x240])]
 
 
 test_init_prep = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks 0 [0]

@@ -233,10 +233,6 @@ blake256 salt message =
 
 
 
--- temporary
-main :: IO ()
-main = B.readFile "blake.hs" >>= B.putStrLn
-
 
 
 hexchar n w = case 0xF .&. (w `shift` (-4 * n)) of
@@ -257,8 +253,7 @@ hexchar n w = case 0xF .&. (w `shift` (-4 * n)) of
                 0xe -> 'E'
                 0xf -> 'F'
 
---hex32 w = '0' : 'x' : map hc [7..0] -- HMMM?
-hex32 w = '0' : 'x' : hc 7 : hc 6 : hc 5 : hc 4 : hc 3 : hc 2 : hc 1 : hc 0 : []
+hex32 w = hc 7 : hc 6 : hc 5 : hc 4 : hc 3 : hc 2 : hc 1 : hc 0 : []
         where hc n = hexchar n w
 
 
@@ -367,3 +362,14 @@ test = do
             test_blake256
 
             test_reverse
+
+
+
+main' = putStrLn $ concat $ map hex32 $ blake256 [1,2,3,4] $ B.pack [234,234,235,2,34,23,423,4]
+main =  B.readFile "blake.hs" 
+        >>= (\ x -> putStrLn $ concat $ map hex32 $ blake256 [1,2,3,4] x)
+
+
+
+
+

@@ -16,7 +16,7 @@ initialValues :: [Word32]
 initialValues = [ 0x6a09e667, 0xbb67ae85,
                   0x3c6ef372, 0xa54ff53a,
                   0x510e527f, 0x9b05688c,
-                  0x1f83d9ab, 0x5be0cd19 ] --ok
+                  0x1f83d9ab, 0x5be0cd19 ]
 
 
 -- BLAKE-256 constants
@@ -27,8 +27,8 @@ constants = [ 0x243f6a88, 0x85a308d3,
               0x082efa98, 0xec4e6c89,
               0x452821e6, 0x38d01377,
               0xbe5466cf, 0x34e90c6c,
-              0xc0ac29b7, 0xc97cd0dd,
-              0x3f84d5b5, 0xb5470917 ] --ok
+              0xc0ac29b7, 0xc97c50dd,
+              0x3f84d5b5, 0xb5470917 ]
 
 
 -- BLAKE-256 permutations of 0 to 15
@@ -42,7 +42,7 @@ sigma = [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ],
          [ 12,  5,  1, 15, 14, 13,  4, 10,  0,  7,  6,  3,  9,  2,  8, 11 ], 
          [ 13, 11,  7, 14, 12,  1,  3,  9,  5,  0, 15,  4,  8,  6,  2, 10 ], 
          [  6, 15, 14,  9, 11,  3,  0,  8, 12,  2, 13,  7,  1,  4, 10,  5 ], 
-         [ 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0 ]] --ok?
+         [ 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0 ]]
 
 
 -- replace items in a list
@@ -111,13 +111,6 @@ blakeRound messageblock state round =
 
         foldl' fG state [0..7]
         
-{-
-        let fG' i v = fG v i
-        in
-
-        ((fG' 7) . (fG' 6) . (fG' 5) . (fG' 4) . (fG' 3) . (fG' 2) . (fG' 1) . (fG' 0)) state
--}
-
 
 
 -- initial 16 word state for compressing a block
@@ -183,12 +176,13 @@ type MessageBlock = [Word32]
 -- cumulative bit length
 type Counter = [Word32]
 
+-- IS THERE A WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
+-- how about with vectors or repa or something?
+
 
 -- BLAKE-256 padding
 -- blocks of 512 bits, padded, as 32 bit words 
 -- (tupled with counter words)
-{- OK:
--}
 blocks :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
 blocks counter message = 
 
@@ -238,7 +232,7 @@ blocks counter message =
     
 
 -- BLAKE-256
-blake256 message salt = 
+blake256 salt message =
     let compress' s h (m,t) = compress h m s t
     in foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
 
@@ -320,17 +314,33 @@ test_round_1 description selection =
         --putStrLn $ show $ selection test_round_1_prep
 
 
+{-
 test_round_1' = assert "BLAKE-256, round 1, modified to be identity"
                       ([0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 
                         0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
                         0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 
                         0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89])
                       (test_round_1_prep)
+-}
 
-test_blake256 = assert "BLAKE-256 of '0x00'" (blake256 (B.pack [0]) [0,0,0,0]) 
-                        [0x0CE8D4EF, 0x4DD7CD8D, 0x62DFDED9, 0xD4EDB0A7,
-                         0x74AE6A41, 0x929A74DA, 0x23109E8F, 0x11139C87]
 
+test_blake256 = do
+                    assert "BLAKE-256 of '0x00'" (blake256 [0,0,0,0] $ B.pack [0]) 
+                                [0x0CE8D4EF, 0x4DD7CD8D, 0x62DFDED9, 0xD4EDB0A7,
+                                 0x74AE6A41, 0x929A74DA, 0x23109E8F, 0x11139C87]
+
+                    assert "BLAKE-256 of 72 by '0x00'" (blake256 [0,0,0,0] $ B.pack $ take 72 $ repeat 0)
+                                [0xD419BAD3, 0x2D504FB7, 0xD44D460C, 0x42C5593F, 
+                                 0xE544FA4C, 0x135DEC31, 0xE21BD9AB, 0xDCC22D41]
+
+
+
+test_reverse = do
+                assert "replacement" (replace [(0,99)] [0,1,2,3,4,5,6,7])
+                                     [99,1,2,3,4,5,6,7]
+
+                assert "replacement" (replace [(3,300),(5,500)] [0,1,2,3,4,5,6,7])
+                                     [0,1,2,300,4,500,6,7]
 
 
 test = do
@@ -361,3 +371,4 @@ test = do
 
             test_blake256
 
+            test_reverse

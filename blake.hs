@@ -100,6 +100,7 @@ blakeRound messageblock stateV r =
                 -- return a copy of the state list
                 -- with each of the computed cells replaced 
                 replace (zip (g !! i) [a'', b'', c'', d'']) v
+                --replace (zip (g !! i) [a, b, c, d]) v
         in
 
         foldl' fG stateV [0..7]
@@ -256,20 +257,47 @@ main = B.readFile "blake.hs"
 
 
 
--- compress round 1
---  let r1 = (\ s h (m,t) -> compress h m s t) [0,0,0,0] initialValues $ head $ blocks 0 $ B.unpack $ B.pack [0]
--- ERROR
-
-
--- initial values
--- let i = (\s h (m,t) ->  h ++ (zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants))) [0,0,0,0] initialValues $ head $ blocks 0 $ B.unpack $ B.pack [0]
--- OK?
-
-
 -- one round
--- let b1 = (\(m,t) -> blakeRound m i 1) $ head $ blocks 0 $ B.unpack $ B.pack [0]
+
+-- for REPL testing of assertions
+-- TODO: learn a real test framework
+assert :: Eq a => String -> a -> a -> IO ()
+assert statement x y = if x == y
+                       then putStrLn $ statement ++ ":\tOK"
+                       else putStrLn $ statement ++ ":\tFAILED"
+
+
+
+-- BLAKE-256
 --
---
---
---
---
+test_init_prep = (let getInitial s h (m,t) =  h ++ (zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)) 
+                in getInitial [0,0,0,0] initialValues $ head $ blocks 0 [0])
+
+test_init = assert "BLAKE-256, initial state on '0x00'" 
+                   [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 
+                    0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+                    0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 
+                    0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89]
+                   test_init_prep
+           
+
+test_round_1_prep = (\(m,t) -> blakeRound m test_init_prep 0) $ head $ blocks 0 [0]
+
+test_round_1_2 = assert "BLAKE-256, one round on '0x00'"
+                      (take 2 [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 
+                               0x0669DF2A, 0x084E66E3, 0xA516C4B3, 0x339DED5B, 
+                               0x26051FB7, 0x09D18B27, 0x3A2E8FA8, 0x488C6059, 
+                               0x13E513E6, 0xB37ED53E, 0x16CAC7B9, 0x75AF6DF6])
+                      (take 2 test_round_1_prep)
+
+
+test_round_1_3 = assert "BLAKE-256, one round on '0x00'"
+                      (take 3 [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 
+                               0x0669DF2A, 0x084E66E3, 0xA516C4B3, 0x339DED5B, 
+                               0x26051FB7, 0x09D18B27, 0x3A2E8FA8, 0x488C6059, 
+                               0x13E513E6, 0xB37ED53E, 0x16CAC7B9, 0x75AF6DF6])
+                      (take 3 test_round_1_prep)
+
+
+
+

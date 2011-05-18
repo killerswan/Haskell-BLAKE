@@ -63,7 +63,7 @@ replace newWords words =
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
-blakeRound messageblock stateV round = 
+blakeRound messageblock state round = 
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
@@ -109,7 +109,21 @@ blakeRound messageblock stateV round =
                 --replace (zip (g !! ii) [a, b, c, d]) v               -- turn this into identity
         in
 
-        foldl' fG stateV [0..7]
+        foldl' fG state [0..7]
+        
+{-
+        let fG' i v = fG v i
+        in
+
+        ((fG' 7) . (fG' 6) . (fG' 5) . (fG' 4) . (fG' 3) . (fG' 2) . (fG' 1) . (fG' 0)) state
+-}
+
+
+
+-- initial 16 word state for compressing a block
+initialState h s t = 
+    h ++ 
+    zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)
 
 
 -- BLAKE-256 compression of one message block
@@ -118,21 +132,15 @@ blakeRound messageblock stateV round =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
--- 
--- TODO: fix this type?
 compress :: [Word32] -> [Word32] -> [Word32] -> [Word32] -> [Word32]
 compress h m s t =
 
-    -- initialize state, 16 words
-    let v = h ++ (zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants))
-    in
-
     -- do 14 rounds on this messageblock
-    let v' = foldl' (blakeRound m) v [0..13]
+    let v = foldl' (blakeRound m) (initialState h s t) [0..13]
     in
 
     -- finalize
-    zipWith4 xor4 h (s ++ s) (take 8 v') (drop 8 v')
+    zipWith4 xor4 h (s ++ s) (take 8 v) (drop 8 v)
                 where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
 
 
@@ -178,8 +186,6 @@ type Counter = [Word32]
 -- blocks of 512 bits, padded, as 32 bit words 
 -- (tupled with counter words)
 {- OK:
-    *Main> blocks 0 [0]
-    [([8388608,0,0,0,0,0,0,0,0,0,0,0,0,1,8,0],[8,0])]
 -}
 blocks :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
 blocks counter s = 
@@ -202,7 +208,7 @@ blocks counter s =
     -- cumulative block length in bits as two 32 bit words
     -- low:high:[]
     let counter32 :: [Word32]
-        counter32 = fromIntegral counter' : fromIntegral (counter' `shift` (-32)) : []
+        counter32 = fromIntegral (counter' `shift` (-32)) : fromIntegral counter' : []
     in
 
     -- all 512 bits?
@@ -228,39 +234,49 @@ blocks counter s =
         in
     
         case length final of
-            16 -> [( final, counter32 )]
-            32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
+            16 -> [( final, reverse counter32 )]
+            32 -> [( take 16 final, reverse counter32 ), ( drop 16 final, [0,0] )]
             otherwise -> error "we have created a monster! padding --> nonsense"
     
     else
         -- this is an ordinary message block, so recurse
-        ( from8to32 next, counter32 ) : (blocks counter' (drop 64 s))
+        ( from8to32 next, reverse counter32 ) : (blocks counter' (drop 64 s))
     
 
-
-
+-- BLAKE-256
 blake256 message salt = 
-        let compress' s h (m,t) = compress h m s t
-        in
-        --foldl' (compress' s) initialValues $ blocks 0 $ B.unpack message -- B.readFile "blake.hs"
-        --OK? compress' [0..] [0..] ([0,0], [0..15])
-        --OK? compress' [0..3] initialValues ([0,0], [0..15])
-        --OK? compress' [0..3] initialValues $ head $ blocks 0 ([3,24,12,23,5,23,42,34,1,42,35,4,56,34,3,5,5,7])
-        --OK? compress' [0..3] initialValues $ head $ blocks 0 $ B.unpack message
-        foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
+    let compress' s h (m,t) = compress h m s t
+    in foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
 
-
-
--- temporary
-doStuff :: B.ByteString -> IO ()
-doStuff x = B.putStrLn x
 
 
 -- temporary
 main :: IO ()
-main = B.readFile "blake.hs"
-       >>= doStuff
+main = B.readFile "blake.hs" >>= B.putStrLn
 
+
+
+hexchar n w = case 0xF .&. (w `shift` (-4 * n)) of
+                0x0 -> '0'
+                0x1 -> '1'
+                0x2 -> '2'
+                0x3 -> '3'
+                0x4 -> '4'
+                0x5 -> '5'
+                0x6 -> '6'
+                0x7 -> '7'
+                0x8 -> '8'
+                0x9 -> '9'
+                0xa -> 'A'
+                0xb -> 'B'
+                0xc -> 'C'
+                0xd -> 'D'
+                0xe -> 'E'
+                0xf -> 'F'
+
+--hex32 w = '0' : 'x' : map hc [7..0] -- HMMM?
+hex32 w = '0' : 'x' : hc 7 : hc 6 : hc 5 : hc 4 : hc 3 : hc 2 : hc 1 : hc 0 : []
+        where hc n = hexchar n w
 
 
 
@@ -273,10 +289,21 @@ assert statement x y = putStr (statement ++ "...  ")
                           else putStrLn $ "FAILED"
 
 
+test_blocks1 = assert "message padding into blocks, 8 zeroes" 
+                (blocks 0 [0])
+                [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
+                    0x00000000, 0x00000000, 0x00000000, 0x00000000,
+                    0x00000000, 0x00000000, 0x00000000, 0x00000000, 
+                    0x00000000, 0x00000001, 0x00000000, 0x00000008], [8,0])]
 
 
-test_init_prep = (let getInitial s h (m,t) =  h ++ (zipWith xor (s ++ [t!!0, t!!0, t!!1, t!!1]) (take 8 constants)) 
-                in getInitial [0,0,0,0] initialValues $ head $ blocks 0 [0])
+test_blocks2 = assert "message padding into blocks, 567 zeroes" 
+                (blocks 0 $ take 72 $ repeat 0)
+                [((take 16 $ repeat 0),                            [0x200,0]),
+                 ([0,0,0x80000000, 0,0,0,0,0,0,0,0,0,0,1,0,0x240], [0x240,0])]
+
+
+test_init_prep = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks 0 [0]
 
 test_init = assert "BLAKE-256, initial state on '0x00'" 
                    [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 
@@ -288,40 +315,55 @@ test_init = assert "BLAKE-256, initial state on '0x00'"
 
 test_round_1_prep = (\(m,t) -> blakeRound m test_init_prep 0) $ head $ blocks 0 [0]
 
-test_round_1 description selection = assert ("BLAKE-256, one round on '0x00', given selection: " ++ description)
-                                      (selection [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 
+test_round_1 description selection = 
+    --do
+        assert ("BLAKE-256, one round on '0x00', given selection: " ++ description)
+                                   (selection [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 
                                                0x0669DF2A, 0x084E66E3, 0xA516C4B3, 0x339DED5B, 
                                                0x26051FB7, 0x09D18B27, 0x3A2E8FA8, 0x488C6059, 
                                                0x13E513E6, 0xB37ED53E, 0x16CAC7B9, 0x75AF6DF6])
-                                      (selection test_round_1_prep)
+                                   (selection test_round_1_prep)
+        --putStrLn $ show $ selection test_round_1_prep
 
 
 test_round_1' = assert "BLAKE-256, round 1, modified to be identity"
                       ([0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 
-                               0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
-                               0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 
-                               0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89])
+                        0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+                        0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 
+                        0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89])
                       (test_round_1_prep)
+
+test_blake256 = assert "BLAKE-256 of '0x00'" (blake256 (B.pack [0]) [0,0,0,0]) 
+                        [0x0CE8D4EF, 0x4DD7CD8D, 0x62DFDED9, 0xD4EDB0A7,
+                         0x74AE6A41, 0x929A74DA, 0x23109E8F, 0x11139C87]
 
 
 
 test = do
+            test_blocks1
+            test_blocks2
+
             test_init
-            test_round_1 "!!  0" $ (!! 0)
-            test_round_1 "!!  1" $ (!! 1)
-            test_round_1 "!!  2" $ (!! 2)
-            test_round_1 "!!  3" $ (!! 3)
-            test_round_1 "!!  4" $ (!! 4)
-            test_round_1 "!!  5" $ (!! 5)
-            test_round_1 "!!  6" $ (!! 6)
-            test_round_1 "!!  7" $ (!! 7)
-            test_round_1 "!!  8" $ (!! 8)
-            test_round_1 "!!  9" $ (!! 9)
+
+            -- ARE THERE TYPOS IN THE EXAMPLE ROUND 1 RESULTS??
+            test_round_1 "!! 0" $ (!! 0)
+            test_round_1 "!! 1" $ (!! 1)
+            test_round_1 "!! 2" $ (!! 2)
+            test_round_1 "!! 3" $ (!! 3)
+            test_round_1 "!! 4" $ (!! 4)
+            test_round_1 "!! 5" $ (!! 5)
+            test_round_1 "!! 6" $ (!! 6)
+            test_round_1 "!! 7" $ (!! 7)
+            test_round_1 "!! 8" $ (!! 8)
+            test_round_1 "!! 9" $ (!! 9)
             test_round_1 "!! 10" $ (!! 10)
             test_round_1 "!! 11" $ (!! 11)
             test_round_1 "!! 12" $ (!! 12)
             test_round_1 "!! 13" $ (!! 13)
             test_round_1 "!! 14" $ (!! 14)
             test_round_1 "!! 15" $ (!! 15)
+
             -- test_round_1'
+
+            test_blake256
 

@@ -245,4 +245,5 @@ blake256 salt message =
 
 
 
+-- TODO: 512, other hash sizes; optimize
 

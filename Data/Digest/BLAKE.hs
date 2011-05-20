@@ -8,8 +8,7 @@ module Data.Digest.BLAKE ( blake256,
                            blakeRound, 
                            initialValues, 
                            initialState, 
-                           blocks,
-                           defaultMain ) where
+                           blocks ) where
 
 
 
@@ -20,7 +19,7 @@ import Data.Bits
 import Data.Word
 import Data.List -- needed for zipWith4
 import Data.Maybe -- needed for isJust, fromJust
-import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as B
 
 
 -- BLAKE-256 initial values
@@ -242,38 +241,6 @@ blocks counter message =
 blake256 salt message =
     let compress' s h (m,t) = compress h m s t
     in foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
-
-
-
-
-
-hexchar n w = case 0xF .&. (w `shift` (-4 * n)) of
-                0x0 -> '0'
-                0x1 -> '1'
-                0x2 -> '2'
-                0x3 -> '3'
-                0x4 -> '4'
-                0x5 -> '5'
-                0x6 -> '6'
-                0x7 -> '7'
-                0x8 -> '8'
-                0x9 -> '9'
-                0xa -> 'A'
-                0xb -> 'B'
-                0xc -> 'C'
-                0xd -> 'D'
-                0xe -> 'E'
-                0xf -> 'F'
-
-hex32 w = hc 7 : hc 6 : hc 5 : hc 4 : hc 3 : hc 2 : hc 1 : hc 0 : []
-        where hc n = hexchar n w
-
-
-
-
-
-main' = putStrLn $ concat $ map hex32 $ blake256 [1,2,3,4] $ B.pack [234,234,235,2,34,23,423,4]
-defaultMain =  B.readFile "README" >>= (\ x -> putStrLn $ concat $ map hex32 $ blake256 [1,2,3,4] x)
 
 
 

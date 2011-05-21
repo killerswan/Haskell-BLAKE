@@ -11,10 +11,6 @@ module SHA3.BLAKE ( blake256,
 where
 
 
-
-
-
-
 import Data.Bits
 import Data.Word
 import Data.List -- needed for zipWith4

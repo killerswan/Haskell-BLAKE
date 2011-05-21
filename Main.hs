@@ -1,3 +1,8 @@
+-- Copyright (c) 2011 Kevin Cantu <me@kevincantu.org>
+--
+-- A naive implementation of the Blake cryptographic hash: 
+-- use at your own risk.
+
 import SHA3.BLAKE
 import Data.Bits
 import qualified Data.ByteString.Lazy as B
@@ -40,5 +45,4 @@ main =
         sequence $ map (printHash [0,0,0,0]) args
 
     -- TODO: add option parsing so we can check when a -c flag and file of hashes is given
-
 

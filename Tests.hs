@@ -1,4 +1,7 @@
-
+-- Copyright (c) 2011 Kevin Cantu <me@kevincantu.org>
+--
+-- A naive implementation of the Blake cryptographic hash: 
+-- use at your own risk.
 
 import Test.HUnit
 import SHA3.BLAKE

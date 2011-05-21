@@ -69,7 +69,7 @@ replace newWords words =
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
-blakeRound shifts messageblock state round = 
+blakeRound rotations messageblock state round = 
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
@@ -81,7 +81,7 @@ blakeRound shifts messageblock state round =
                   [1,6,11,12], 
                   [2,7,8,13], 
                   [3,4,9,14] ] 
-            (s0, s1, s2, s3) = shifts -- minus 16, 12, 8, 7 for 256-bit mode
+            (s0, s1, s2, s3) = rotations -- minus 16, 12, 8, 7 for 256-bit mode
         in
 
         -- perform a given Gi within the round function
@@ -97,13 +97,13 @@ blakeRound shifts messageblock state round =
             
                     -- compute the round
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
-                    d'  = (d `xor` a') `rotate` s0
+                    d'  = (d `xor` a') `rotate` (-s0)
                     c'  = c + d' 
-                    b'  = (b `xor` c') `rotate` s1
+                    b'  = (b `xor` c') `rotate` (-s1)
                     a'' = a' + b' + (messageword (2*ii + 1) `xor` constant (2*ii))
-                    d'' = (d' `xor` a'') `rotate` s2
+                    d'' = (d' `xor` a'') `rotate` (-s2)
                     c'' = c' + d'' 
-                    b'' = (b' `xor` c'') `rotate` s3
+                    b'' = (b' `xor` c'') `rotate` (-s3)
                 in
 
                 -- return a copy of the state list
@@ -129,11 +129,11 @@ initialState h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
---compress :: [Word32] -> [Word32] -> [Word32] -> [Word32] -> [Word32]
-compress rounds shifts h m s t =
+compress :: Int -> (Int, Int, Int, Int) -> Hash -> MessageBlock -> Salt -> Counter -> Hash
+compress rounds rotations h m s t =
 
     -- do 14 rounds on this messageblock for 256-bit
-    let v = foldl' (blakeRound shifts m) (initialState h s t) [0..rounds-1]
+    let v = foldl' (blakeRound rotations m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize
@@ -174,6 +174,12 @@ from8to64 = from8toN 8
 -- 16 words
 type MessageBlock = [Word32]
 
+-- 4 words
+type Salt = [Word32]
+
+-- 16 words
+type Hash = [Word32]
+
 -- 2 words
 -- cumulative bit length
 type Counter = [Word32]
@@ -185,10 +191,10 @@ type Counter = [Word32]
 -- BLAKE-256 padding
 -- blocks of 512 bits, padded, as 32 bit words 
 -- (tupled with counter words)
-blocks :: [Word8] -> [( [Word32], [Word32] )]
+blocks :: [Word8] -> [( MessageBlock, Counter )]
 blocks message = 
 
-    let loop :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
+    let loop :: Word64 -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
                 -- the next message block
@@ -238,10 +244,24 @@ blocks message =
     loop 0 message
         
 
+data Mode = Mode { initial :: Hash
+                 , rounds :: Int
+                 , rotations :: (Int, Int, Int, Int) 
+                 }
+
+
+-- BLAKE
+blake :: Mode -> Salt -> [Word8] -> Hash
+blake Mode {initial=ivs, rounds=rnds, rotations=rots} salt message =
+    let compress' h (m,t) = compress rnds rots h m salt t
+    in
+    foldl' compress' ivs $ blocks message
+     
+
 -- BLAKE-256
-blake256 salt message =
-    let compress' s h (m,t) = compress 14 (-16,-12,-8,-7) h m s t
-    in foldl' (compress' salt) initialValues $ blocks message
+blake256 :: Salt -> [Word8] -> Hash
+blake256 salt message = blake m salt message
+                      where m = Mode { initial=initialValues, rounds=14, rotations=(16,12,8,7) }
 
 
 

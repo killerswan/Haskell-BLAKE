@@ -4,11 +4,11 @@
 -- use at your own risk.
 
 module SHA3.BLAKE ( blake256,
-                           replace, 
-                           blakeRound, 
-                           initialValues, 
-                           initialState, 
-                           blocks ) where
+                    blakeRound, 
+                    initialValues, 
+                    initialState, 
+                    blocks ) 
+where
 
 
 

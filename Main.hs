@@ -30,7 +30,7 @@ hex32 w = map hc [7,6,5,4,3,2,1,0]
 printHash salt path = 
     do
         msg <- B.readFile path
-        hash <- return $ hex32 =<< blake256 salt msg
+        hash <- return $ hex32 =<< blake256 salt (B.unpack msg)
         putStrLn $ hash ++ " *" ++ path
 
 

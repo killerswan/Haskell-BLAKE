@@ -56,12 +56,12 @@ test_round_1 =
 test_blake256 = 
     TestCase $ do
         assertEqual "BLAKE-256 of '0x00'" 
-            (blake256 [0,0,0,0] $ B.pack [0]) [0x0CE8D4EF, 0x4DD7CD8D, 0x62DFDED9, 0xD4EDB0A7,
-                                               0x74AE6A41, 0x929A74DA, 0x23109E8F, 0x11139C87]
+            (blake256 [0,0,0,0] [0]) [0x0CE8D4EF, 0x4DD7CD8D, 0x62DFDED9, 0xD4EDB0A7,
+                                      0x74AE6A41, 0x929A74DA, 0x23109E8F, 0x11139C87]
 
         assertEqual "BLAKE-256 of 72 by '0x00'" 
-            (blake256 [0,0,0,0] $ B.pack $ take 72 $ repeat 0) [0xD419BAD3, 0x2D504FB7, 0xD44D460C, 0x42C5593F, 
-                                                                0xE544FA4C, 0x135DEC31, 0xE21BD9AB, 0xDCC22D41]
+            (blake256 [0,0,0,0] $ take 72 $ repeat 0) [0xD419BAD3, 0x2D504FB7, 0xD44D460C, 0x42C5593F, 
+                                                       0xE544FA4C, 0x135DEC31, 0xE21BD9AB, 0xDCC22D41]
 
 
 

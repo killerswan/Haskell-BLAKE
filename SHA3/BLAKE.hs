@@ -19,7 +19,6 @@ import Data.Bits
 import Data.Word
 import Data.List -- needed for zipWith4
 import Data.Maybe -- needed for isJust, fromJust
-import qualified Data.ByteString.Lazy as B
 
 
 -- BLAKE-256 initial values
@@ -240,7 +239,7 @@ blocks counter message =
 -- BLAKE-256
 blake256 salt message =
     let compress' s h (m,t) = compress h m s t
-    in foldl' (compress' salt) initialValues $ blocks 0 $ B.unpack message
+    in foldl' (compress' salt) initialValues $ blocks 0 message
 
 
 

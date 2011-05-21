@@ -10,6 +10,7 @@ import qualified Data.ByteString.Lazy as B
 
 -- BLAKE-256 --------------------------------------------------------------------------
 
+{-
 test_blocks1 = 
     "message padding into blocks, 8 zeroes" ~:
     (blocks [0]) ~=? [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
@@ -22,8 +23,10 @@ test_blocks2 =
     "message padding into blocks, 567 zeroes" ~:
     (blocks $ take 72 $ repeat 0) ~=? [((take 16 $ repeat 0),                            [0,0x200]),
                                          ([0,0,0x80000000,0,0,0,0,0,0,0,0,0,0,1,0,0x240], [0,0x240])]
+-}
 
 
+{-
 test_init = 
     let test_init_prep = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks [0]
     in
@@ -32,6 +35,7 @@ test_init =
                         0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
                         0x243F6A88, 0x85A308D3, 0x13198A2E, 0x03707344, 
                         0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89]
+-}
 
 
 {-
@@ -66,9 +70,9 @@ test_blake256 =
 -- all --------------------------------------------------------------------------
 
 tests = TestList
-                 [ "init"                 ~: test_init,
-                   "blocks, 1"            ~: test_blocks1,
-                   "blocks, 2"            ~: test_blocks2,
+                 [ --"init"                 ~: test_init,
+                   --"blocks, 1"            ~: test_blocks1,
+                   --"blocks, 2"            ~: test_blocks2,
                    --"round function, once" ~: test_round_1,
                    "BLAKE-256"            ~: test_blake256 ]
 

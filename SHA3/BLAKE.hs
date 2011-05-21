@@ -3,11 +3,9 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module SHA3.BLAKE ( blake256,
-                    blakeRound, 
-                    initialValues, 
-                    initialState, 
-                    blocks ) 
+module SHA3.BLAKE
+( blake256
+)
 where
 
 
@@ -129,8 +127,8 @@ initialState h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress :: Int -> (Int, Int, Int, Int) -> Hash -> MessageBlock -> Salt -> Counter -> Hash
-compress rounds rotations h m s t =
+compress :: RoundsMode -> Hash -> MessageBlock -> Salt -> Counter -> Hash
+compress RoundsMode {rotations=rotations, rounds=rounds} h m s t =
 
     -- do 14 rounds on this messageblock for 256-bit
     let v = foldl' (blakeRound rotations m) (initialState h s t) [0..rounds-1]
@@ -185,13 +183,13 @@ type Counter = [Word32]
 -- BLAKE-256 padding
 -- blocks of twice the hash size, which is 8 words
 -- with a counter per block
-blocks message = 
+blocks PaddingMode {wordSize=wordSize, terminator=paddingTerminator} message = 
 
     let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
-                paddingTerminator = 0x01
-                wordSize = 32
+                --paddingTerminator = 0x01
+                --wordSize = 32
                 hashSize = 8 * wordSize -- i.e. 256
                 blockSize = 16 * wordSize
                 blockBytes = blockSize `div` 8
@@ -245,29 +243,33 @@ blocks message =
         
 
 data Mode = Mode { initial :: Hash
-                 , rounds :: Int
-                 , rotations :: (Int, Int, Int, Int) 
-                 , wordSize :: Int
-                 , paddingTerminator :: Word8
+                 , roundsMode :: RoundsMode
+                 , paddingMode :: PaddingMode
                  }
+
+data RoundsMode = RoundsMode { rounds :: Int
+                             , rotations :: (Int, Int, Int, Int) 
+                             }
+
+data PaddingMode = PaddingMode { wordSize :: Int
+                               , terminator :: Word8
+                               }
 
 
 -- BLAKE
 blake :: Mode -> Salt -> [Word8] -> Hash
-blake Mode {initial=ivs, rounds=rnds, rotations=rots} salt message =
-    let compress' h (m,t) = compress rnds rots h m salt t
+blake Mode {initial=ivs, roundsMode=rm, paddingMode=pm} salt message =
+    let compress' h (m,t) = compress rm h m salt t
     in
-    foldl' compress' ivs $ blocks message
+    foldl' compress' ivs $ blocks pm message
      
 
 -- BLAKE-256
 blake256 :: Salt -> [Word8] -> Hash
 blake256 salt message = blake m salt message
-                      where m = Mode { wordSize=32, 
+                      where m = Mode { paddingMode = PaddingMode {wordSize=32, terminator=0x01}, 
                                        initial=initialValues, 
-                                       rounds=14, 
-                                       rotations=(16,12,8,7), 
-                                       paddingTerminator=0x01 }
+                                       roundsMode = RoundsMode {rounds=14, rotations=(16,12,8,7)} }
 
 
 

@@ -255,8 +255,7 @@ blocks mode message =
     loop 0 message
         
 
--- BLAKE
-blake :: Int -> Salt -> [Word8] -> Hash
+--blake :: Int -> Salt -> [Word8] -> Hash
 blake mode salt message =
     let ivs = case mode of
                 256 -> initialValues
@@ -266,12 +265,9 @@ blake mode salt message =
     foldl' compress' ivs $ blocks mode message
      
 
--- BLAKE-256
-blake256 :: Salt -> [Word8] -> Hash
-blake256 salt message = blake 256 salt message
+blake256 = blake 256
 
 
 
 
--- TODO: 512, other hash sizes; optimize
 

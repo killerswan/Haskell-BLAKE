@@ -34,6 +34,7 @@ test_init =
                         0xA409382A, 0x299F31D8, 0x082EFA98, 0xEC4E6C89]
 
 
+{-
 test_round_1 = 
     let test_init_prep    = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks 0 [0]
         test_round_1_prep = (\ (m,t) -> blakeRound m test_init_prep 0) $ head $ blocks 0 [0]
@@ -43,6 +44,7 @@ test_round_1 =
                            0x0669DF2A, 0x084E66E3, 0xA516C4B3, 0x339DED5B, 
                            0x26051FB7, 0x09D18B27, 0x3A2E8FA8, 0x488C6059, 
                            0x13E513E6, 0xB37ED53E, 0x16CAC7B9, 0x75AF6DF6]
+-}
 
 
 test_blake256 = 
@@ -67,7 +69,7 @@ tests = TestList
                  [ "init"                 ~: test_init,
                    "blocks, 1"            ~: test_blocks1,
                    "blocks, 2"            ~: test_blocks2,
-                   "round function, once" ~: test_round_1,
+                   --"round function, once" ~: test_round_1,
                    "BLAKE-256"            ~: test_blake256 ]
 
 

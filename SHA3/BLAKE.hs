@@ -69,7 +69,7 @@ replace newWords words =
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
-blakeRound messageblock state round = 
+blakeRound shifts messageblock state round = 
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
@@ -81,6 +81,7 @@ blakeRound messageblock state round =
                   [1,6,11,12], 
                   [2,7,8,13], 
                   [3,4,9,14] ] 
+            (s0, s1, s2, s3) = shifts -- minus 16, 12, 8, 7 for 256-bit mode
         in
 
         -- perform a given Gi within the round function
@@ -96,13 +97,13 @@ blakeRound messageblock state round =
             
                     -- compute the round
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
-                    d'  = (d `xor` a') `rotate` (-16) 
+                    d'  = (d `xor` a') `rotate` s0
                     c'  = c + d' 
-                    b'  = (b `xor` c') `rotate` (-12) 
+                    b'  = (b `xor` c') `rotate` s1
                     a'' = a' + b' + (messageword (2*ii + 1) `xor` constant (2*ii))
-                    d'' = (d' `xor` a'') `rotate` (-8) 
+                    d'' = (d' `xor` a'') `rotate` s2
                     c'' = c' + d'' 
-                    b'' = (b' `xor` c'') `rotate` (-7)
+                    b'' = (b' `xor` c'') `rotate` s3
                 in
 
                 -- return a copy of the state list
@@ -128,11 +129,11 @@ initialState h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress :: [Word32] -> [Word32] -> [Word32] -> [Word32] -> [Word32]
-compress h m s t =
+--compress :: [Word32] -> [Word32] -> [Word32] -> [Word32] -> [Word32]
+compress rounds shifts h m s t =
 
-    -- do 14 rounds on this messageblock
-    let v = foldl' (blakeRound m) (initialState h s t) [0..13]
+    -- do 14 rounds on this messageblock for 256-bit
+    let v = foldl' (blakeRound shifts m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize
@@ -234,7 +235,7 @@ blocks counter message =
 
 -- BLAKE-256
 blake256 salt message =
-    let compress' s h (m,t) = compress h m s t
+    let compress' s h (m,t) = compress 14 (-16,-12,-8,-7) h m s t
     in foldl' (compress' salt) initialValues $ blocks 0 message
 
 

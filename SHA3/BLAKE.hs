@@ -145,9 +145,11 @@ compress rounds rotations h m s t =
 -- group bytes into larger words
 -- should be built-in?
 from8toN :: Bits a => Int -> [Word8] -> [a]
-from8toN mode words = 
-    -- make one word
-    let getWord os = if length os /= mode then
+from8toN size words = 
+    let mode = size `div` 8
+
+        -- make one word
+        getWord os = if length os /= mode then
                             error "sorry, would have to pad this list to make words"
                      else
                             foldl' f 0 os
@@ -164,11 +166,13 @@ from8toN mode words =
     -- fold into words
     loop [] words
 
+{-
 from8to32 :: [Word8] -> [Word32]
-from8to32 = from8toN 4
+from8to32 = from8toN 32
 
 from8to64 :: [Word8] -> [Word64]
-from8to64 = from8toN 8
+from8to64 = from8toN 64
+-}
 
 
 -- 16 words
@@ -189,16 +193,19 @@ type Counter = [Word32]
 
 
 -- BLAKE-256 padding
--- blocks of 512 bits, padded, as 32 bit words 
--- (tupled with counter words)
-blocks :: [Word8] -> [( MessageBlock, Counter )]
+-- blocks of twice the hash size, which is 8 words
+-- with a counter per block
 blocks message = 
 
-    let loop :: Word64 -> [Word8] -> [( MessageBlock, Counter )]
+    let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
+                wordSize = 32
+                hashSize = 8 * wordSize -- i.e. 256
+                blockBytes = 16 * wordSize `div` 8
+    
                 -- the next message block
-                next = take 64 message
+                next = take blockBytes message
 
                 -- block length
                 len = length next
@@ -206,13 +213,12 @@ blocks message =
                 -- cumulative block length in bits
                 counter' = counter + 8 * fromIntegral len
 
-                -- cumulative block length in bits as two 32 bit words
-                counter32 :: [Word32]
-                counter32 = fromIntegral (counter' `shift` (-32)) : fromIntegral counter' : []
+                -- cumulative block length in bits as two words
+                splitCounter = fromIntegral (counter' `shift` (-wordSize)) : fromIntegral counter' : []
             in
 
             -- all 512 bits?
-            if len < 64
+            if len < blockBytes
             then
                 -- this is the last message block (empty or partial)
                 let simplePadding = 
@@ -228,17 +234,17 @@ blocks message =
                                 -- more bytes
                                 z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
 
-                    final = from8to32 (next ++ simplePadding) ++ counter32
+                    final = from8toN wordSize (next ++ simplePadding) ++ splitCounter
                 in
             
                 case length final of
-                    16 -> [( final, counter32 )]
-                    32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
+                    16 -> [( final, splitCounter )]
+                    32 -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
                     otherwise -> error "we have created a monster! padding --> nonsense"
             
             else
                 -- this is an ordinary message block, so recurse
-                ( from8to32 next, counter32 ) : (loop counter' (drop 64 message))
+                ( from8toN wordSize next, splitCounter ) : (loop counter' (drop 64 message))
 
     in
     loop 0 message
@@ -247,6 +253,7 @@ blocks message =
 data Mode = Mode { initial :: Hash
                  , rounds :: Int
                  , rotations :: (Int, Int, Int, Int) 
+                 , wordSize :: Int
                  }
 
 
@@ -261,7 +268,7 @@ blake Mode {initial=ivs, rounds=rnds, rotations=rots} salt message =
 -- BLAKE-256
 blake256 :: Salt -> [Word8] -> Hash
 blake256 salt message = blake m salt message
-                      where m = Mode { initial=initialValues, rounds=14, rotations=(16,12,8,7) }
+                      where m = Mode { wordSize=32, initial=initialValues, rounds=14, rotations=(16,12,8,7) }
 
 
 

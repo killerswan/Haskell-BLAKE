@@ -73,26 +73,17 @@ replace newWords words =
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
 blakeRound mode messageblock state round = 
 
-        -- define each Gi in a round as (i, cell numbers)
-        -- TODO: when parallelizing, make this more complicated
-        let g = [ [0,4,8,12],   -- 4 columns
-                  [1,5,9,13], 
-                  [2,6,10,14], 
-                  [3,7,11,15], 
-                  [0,5,10,15],  -- 4 diagonals
-                  [1,6,11,12], 
-                  [2,7,8,13], 
-                  [3,4,9,14] ] 
-
-            [r0,r1,r2,r3] = case mode of 
-                                256 -> [-16, -12,  -8,  -7]
-                                512 -> [-32, -25, -16, -11]
-        in
-
         -- perform a given Gi within the round function
-        let fG state ii = 
+        let applyGToState state (ii,gg) = 
                 let 
-                    [a,b,c,d] = map (state !!) (g !! ii)
+                    -- cells to handle
+                    [a,b,c,d] = map (state !!) gg
+                
+                    -- rotations
+                    [r0,r1,r2,r3] = 
+                        case mode of 
+                            256 -> [-16, -12,  -8,  -7]
+                            512 -> [-32, -25, -16, -11]
 
                     -- get sigma
                     sigma n = sigmaTable !! (round `mod` 10) !! n
@@ -113,11 +104,18 @@ blakeRound mode messageblock state round =
 
                 -- return a copy of the state list
                 -- with each of the computed cells replaced 
-                replace (zip (g !! ii) [a'', b'', c'', d'']) state
+                replace (zip gg [a'', b'', c'', d'']) state
         in
 
-        foldl' fG state [0..7]
-        
+        foldl' applyGToState state [ (0, [0,4,8,12]),   -- 4 columns
+                                     (1, [1,5,9,13]), 
+                                     (2, [2,6,10,14]), 
+                                     (3, [3,7,11,15]), 
+                                     (4, [0,5,10,15]),  -- 4 diagonals
+                                     (5, [1,6,11,12]), 
+                                     (6, [2,7,8,13]), 
+                                     (7, [3,4,9,14]) ] 
+                
 
 
 -- initial 16 word state for compressing a block
@@ -218,7 +216,9 @@ blocks mode message =
 
                 -- counter, in two words
                 splitCounter = fromIntegral (counter' `shift` (-wordSize)) : fromIntegral counter' : []
+
             in
+
 
             -- needs padding?
             if len < blockSize

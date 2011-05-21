@@ -1,6 +1,6 @@
 
 
-import Data.Digest.BLAKE
+import SHA3.BLAKE
 import qualified Data.ByteString.Lazy as B
 
 

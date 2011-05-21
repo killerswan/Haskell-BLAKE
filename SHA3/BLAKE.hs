@@ -3,7 +3,7 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module Data.Digest.BLAKE ( blake256,
+module SHA3.BLAKE ( blake256,
                            replace, 
                            blakeRound, 
                            initialValues, 

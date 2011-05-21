@@ -1,4 +1,4 @@
-import Data.Digest.BLAKE
+import SHA3.BLAKE
 import Data.Bits
 import qualified Data.ByteString.Lazy as B
 import System

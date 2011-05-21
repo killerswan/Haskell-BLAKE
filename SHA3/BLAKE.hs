@@ -146,33 +146,23 @@ compress rounds rotations h m s t =
 -- should be built-in?
 from8toN :: Bits a => Int -> [Word8] -> [a]
 from8toN size words = 
-    let mode = size `div` 8
+    let 
+        octets = size `div` 8
 
         -- make one word
-        getWord os = if length os /= mode then
+        getWord os = if length os /= octets then
                             error "sorry, would have to pad this list to make words"
                      else
                             foldl' f 0 os
+            where f acc word = (acc `shift` 8) + (fromIntegral word)
 
-            where f acc octet = (acc `shift` 8) + (fromIntegral octet)
-    in
-
-    -- make list of words
-    let loop acc []     = acc
-        loop acc octets = loop (acc ++ [getWord (take mode octets)])  -- TODO ASAP: master HUnit?
-                               (drop mode octets)
+        -- make list of words
+        loop acc []     = acc
+        loop acc words = loop (acc ++ [getWord (take octets words)]) (drop octets words)
     in
 
     -- fold into words
     loop [] words
-
-{-
-from8to32 :: [Word8] -> [Word32]
-from8to32 = from8toN 32
-
-from8to64 :: [Word8] -> [Word64]
-from8to64 = from8toN 64
--}
 
 
 -- 16 words
@@ -200,29 +190,32 @@ blocks message =
     let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
+                paddingTerminator = 0x01
                 wordSize = 32
                 hashSize = 8 * wordSize -- i.e. 256
-                blockBytes = 16 * wordSize `div` 8
+                blockSize = 16 * wordSize
+                blockBytes = blockSize `div` 8
     
                 -- the next message block
                 next = take blockBytes message
 
-                -- block length
-                len = length next
+                -- block length in bits
+                len = 8 * length next
 
                 -- cumulative block length in bits
-                counter' = counter + 8 * fromIntegral len
+                counter' = counter + fromIntegral len
 
-                -- cumulative block length in bits as two words
+                -- counter, in two words
                 splitCounter = fromIntegral (counter' `shift` (-wordSize)) : fromIntegral counter' : []
             in
 
-            -- all 512 bits?
-            if len < blockBytes
+            -- needs padding?
+            if len < blockSize
             then
                 -- this is the last message block (empty or partial)
                 let simplePadding = 
-                        let zerobits  = (446 - 8 * len) `mod` 512
+                        let target = 2 * hashSize - 2 - 2 * wordSize -- length zero padding will be used to build, 446 or 894
+                            zerobits  = (target - len) `mod` blockSize -- where len is bytes in this data
                             zerobytes = (zerobits - 7 - 7) `div` 8
                         in 
                         case zerobits of 
@@ -230,21 +223,22 @@ blocks message =
                                 -- though I'm not sure that this is conformant
                                 z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
                                 -- one byte
-                                z | z == 6 -> [0x81]
+                                z | z == 6 -> [0x80 + paddingTerminator]
                                 -- more bytes
-                                z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
+                                z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator]
 
                     final = from8toN wordSize (next ++ simplePadding) ++ splitCounter
                 in
             
                 case length final of
+                    -- each message block is padded to 16 words
                     16 -> [( final, splitCounter )]
                     32 -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
                     otherwise -> error "we have created a monster! padding --> nonsense"
             
             else
                 -- this is an ordinary message block, so recurse
-                ( from8toN wordSize next, splitCounter ) : (loop counter' (drop 64 message))
+                ( from8toN wordSize next, splitCounter ) : (loop counter' (drop blockBytes message))
 
     in
     loop 0 message
@@ -254,6 +248,7 @@ data Mode = Mode { initial :: Hash
                  , rounds :: Int
                  , rotations :: (Int, Int, Int, Int) 
                  , wordSize :: Int
+                 , paddingTerminator :: Word8
                  }
 
 
@@ -268,7 +263,11 @@ blake Mode {initial=ivs, rounds=rnds, rotations=rots} salt message =
 -- BLAKE-256
 blake256 :: Salt -> [Word8] -> Hash
 blake256 salt message = blake m salt message
-                      where m = Mode { wordSize=32, initial=initialValues, rounds=14, rotations=(16,12,8,7) }
+                      where m = Mode { wordSize=32, 
+                                       initial=initialValues, 
+                                       rounds=14, 
+                                       rotations=(16,12,8,7), 
+                                       paddingTerminator=0x01 }
 
 
 

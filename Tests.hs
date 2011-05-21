@@ -12,7 +12,7 @@ import qualified Data.ByteString.Lazy as B
 
 test_blocks1 = 
     "message padding into blocks, 8 zeroes" ~:
-    (blocks 0 [0]) ~=? [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
+    (blocks [0]) ~=? [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
                            0x00000000, 0x00000000, 0x00000000, 0x00000000,
                            0x00000000, 0x00000000, 0x00000000, 0x00000000, 
                            0x00000000, 0x00000001, 0x00000000, 0x00000008], [0,8])]
@@ -20,12 +20,12 @@ test_blocks1 =
 
 test_blocks2 = 
     "message padding into blocks, 567 zeroes" ~:
-    (blocks 0 $ take 72 $ repeat 0) ~=? [((take 16 $ repeat 0),                            [0,0x200]),
+    (blocks $ take 72 $ repeat 0) ~=? [((take 16 $ repeat 0),                            [0,0x200]),
                                          ([0,0,0x80000000,0,0,0,0,0,0,0,0,0,0,1,0,0x240], [0,0x240])]
 
 
 test_init = 
-    let test_init_prep = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks 0 [0]
+    let test_init_prep = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks [0]
     in
     "BLAKE-256, initial state on '0x00'" ~: 
     test_init_prep ~=? [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 
@@ -36,8 +36,8 @@ test_init =
 
 {-
 test_round_1 = 
-    let test_init_prep    = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks 0 [0]
-        test_round_1_prep = (\ (m,t) -> blakeRound m test_init_prep 0) $ head $ blocks 0 [0]
+    let test_init_prep    = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues $ head $ blocks [0]
+        test_round_1_prep = (\ (m,t) -> blakeRound m test_init_prep 0) $ head $ blocks [0]
     in
     "BLAKE-256, one round on '0x00'" ~:
     test_round_1_prep ~=? [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 

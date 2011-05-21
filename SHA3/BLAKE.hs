@@ -185,58 +185,63 @@ type Counter = [Word32]
 -- BLAKE-256 padding
 -- blocks of 512 bits, padded, as 32 bit words 
 -- (tupled with counter words)
-blocks :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
-blocks counter message = 
+blocks :: [Word8] -> [( [Word32], [Word32] )]
+blocks message = 
 
-    let 
-        -- the next message block
-        next = take 64 message
+    let loop :: Word64 -> [Word8] -> [( [Word32], [Word32] )]
+        loop counter message =
+            let 
+                -- the next message block
+                next = take 64 message
 
-        -- block length
-        len = length next
+                -- block length
+                len = length next
 
-        -- cumulative block length in bits
-        counter' = counter + 8 * fromIntegral len
+                -- cumulative block length in bits
+                counter' = counter + 8 * fromIntegral len
 
-        -- cumulative block length in bits as two 32 bit words
-        counter32 :: [Word32]
-        counter32 = fromIntegral (counter' `shift` (-32)) : fromIntegral counter' : []
+                -- cumulative block length in bits as two 32 bit words
+                counter32 :: [Word32]
+                counter32 = fromIntegral (counter' `shift` (-32)) : fromIntegral counter' : []
+            in
+
+            -- all 512 bits?
+            if len < 64
+            then
+                -- this is the last message block (empty or partial)
+                let simplePadding = 
+                        let zerobits  = (446 - 8 * len) `mod` 512
+                            zerobytes = (zerobits - 7 - 7) `div` 8
+                        in 
+                        case zerobits of 
+                                -- as a practical matter, the adjustment must be one byte or more
+                                -- though I'm not sure that this is conformant
+                                z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
+                                -- one byte
+                                z | z == 6 -> [0x81]
+                                -- more bytes
+                                z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
+
+                    final = from8to32 (next ++ simplePadding) ++ counter32
+                in
+            
+                case length final of
+                    16 -> [( final, counter32 )]
+                    32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
+                    otherwise -> error "we have created a monster! padding --> nonsense"
+            
+            else
+                -- this is an ordinary message block, so recurse
+                ( from8to32 next, counter32 ) : (loop counter' (drop 64 message))
+
     in
-
-    -- all 512 bits?
-    if len < 64
-    then
-        -- this is the last message block (empty or partial)
-        let simplePadding = 
-                let zerobits  = (446 - 8 * len) `mod` 512
-                    zerobytes = (zerobits - 7 - 7) `div` 8
-                in 
-                case zerobits of 
-                        -- as a practical matter, the adjustment must be one byte or more
-                        -- though I'm not sure that this is conformant
-                        z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
-                        -- one byte
-                        z | z == 6 -> [0x81]
-                        -- more bytes
-                        z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [0x01]
-
-            final = from8to32 (next ++ simplePadding) ++ counter32
-        in
-    
-        case length final of
-            16 -> [( final, counter32 )]
-            32 -> [( take 16 final, counter32 ), ( drop 16 final, [0,0] )]
-            otherwise -> error "we have created a monster! padding --> nonsense"
-    
-    else
-        -- this is an ordinary message block, so recurse
-        ( from8to32 next, counter32 ) : (blocks counter' (drop 64 message))
-    
+    loop 0 message
+        
 
 -- BLAKE-256
 blake256 salt message =
     let compress' s h (m,t) = compress 14 (-16,-12,-8,-7) h m s t
-    in foldl' (compress' salt) initialValues $ blocks 0 message
+    in foldl' (compress' salt) initialValues $ blocks message
 
 
 

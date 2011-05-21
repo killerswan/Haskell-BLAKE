@@ -5,6 +5,10 @@
 
 module SHA3.BLAKE
 ( blake256
+, initialValues
+, initialState
+, blocks
+, blakeRound
 )
 where
 
@@ -67,7 +71,7 @@ replace newWords words =
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
-blakeRound rotations messageblock state round = 
+blakeRound mode messageblock state round = 
 
         -- define each Gi in a round as (i, cell numbers)
         -- TODO: when parallelizing, make this more complicated
@@ -79,7 +83,10 @@ blakeRound rotations messageblock state round =
                   [1,6,11,12], 
                   [2,7,8,13], 
                   [3,4,9,14] ] 
-            (s0, s1, s2, s3) = rotations -- minus 16, 12, 8, 7 for 256-bit mode
+
+            [r0,r1,r2,r3] = case mode of 
+                                256 -> [-16, -12,  -8,  -7]
+                                512 -> [-32, -25, -16, -11]
         in
 
         -- perform a given Gi within the round function
@@ -95,13 +102,13 @@ blakeRound rotations messageblock state round =
             
                     -- compute the round
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
-                    d'  = (d `xor` a') `rotate` (-s0)
+                    d'  = (d `xor` a') `rotate` r0
                     c'  = c + d' 
-                    b'  = (b `xor` c') `rotate` (-s1)
+                    b'  = (b `xor` c') `rotate` r1
                     a'' = a' + b' + (messageword (2*ii + 1) `xor` constant (2*ii))
-                    d'' = (d' `xor` a'') `rotate` (-s2)
+                    d'' = (d' `xor` a'') `rotate` r2
                     c'' = c' + d'' 
-                    b'' = (b' `xor` c'') `rotate` (-s3)
+                    b'' = (b' `xor` c'') `rotate` r3
                 in
 
                 -- return a copy of the state list
@@ -127,11 +134,16 @@ initialState h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress :: RoundsMode -> Hash -> MessageBlock -> Salt -> Counter -> Hash
-compress RoundsMode {rotations=rotations, rounds=rounds} h m s t =
+compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
+compress mode h m s t =
+    let 
+        -- rounds to iterate
+        rounds = case mode of
+                    256 -> 14
+                    512 -> 16
 
-    -- do 14 rounds on this messageblock for 256-bit
-    let v = foldl' (blakeRound rotations m) (initialState h s t) [0..rounds-1]
+        -- do 14 rounds on this messageblock for 256-bit
+        v = foldl' (blakeRound mode m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize
@@ -183,13 +195,14 @@ type Counter = [Word32]
 -- BLAKE-256 padding
 -- blocks of twice the hash size, which is 8 words
 -- with a counter per block
-blocks PaddingMode {wordSize=wordSize, terminator=paddingTerminator} message = 
+blocks mode message = 
 
     let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
-                --paddingTerminator = 0x01
-                --wordSize = 32
+                (paddingTerminator, wordSize) = case mode of 
+                                                    256 -> (0x01, 32)
+                                                    512 -> (0x01, 64)
                 hashSize = 8 * wordSize -- i.e. 256
                 blockSize = 16 * wordSize
                 blockBytes = blockSize `div` 8
@@ -242,34 +255,20 @@ blocks PaddingMode {wordSize=wordSize, terminator=paddingTerminator} message =
     loop 0 message
         
 
-data Mode = Mode { initial :: Hash
-                 , roundsMode :: RoundsMode
-                 , paddingMode :: PaddingMode
-                 }
-
-data RoundsMode = RoundsMode { rounds :: Int
-                             , rotations :: (Int, Int, Int, Int) 
-                             }
-
-data PaddingMode = PaddingMode { wordSize :: Int
-                               , terminator :: Word8
-                               }
-
-
 -- BLAKE
-blake :: Mode -> Salt -> [Word8] -> Hash
-blake Mode {initial=ivs, roundsMode=rm, paddingMode=pm} salt message =
-    let compress' h (m,t) = compress rm h m salt t
+blake :: Int -> Salt -> [Word8] -> Hash
+blake mode salt message =
+    let ivs = case mode of
+                256 -> initialValues
+        
+        compress' h (m,t) = compress mode h m salt t
     in
-    foldl' compress' ivs $ blocks pm message
+    foldl' compress' ivs $ blocks mode message
      
 
 -- BLAKE-256
 blake256 :: Salt -> [Word8] -> Hash
-blake256 salt message = blake m salt message
-                      where m = Mode { paddingMode = PaddingMode {wordSize=32, terminator=0x01}, 
-                                       initial=initialValues, 
-                                       roundsMode = RoundsMode {rounds=14, rotations=(16,12,8,7)} }
+blake256 salt message = blake 256 salt message
 
 
 

@@ -74,7 +74,7 @@ replace newWords words =
 blakeRound mode messageblock state round = 
 
         -- perform a given Gi within the round function
-        let applyGToState state (ii,gg) = 
+        let applyGTo4 state (ii,gg) = 
                 let 
                     -- cells to handle
                     [a,b,c,d] = map (state !!) gg
@@ -104,18 +104,42 @@ blakeRound mode messageblock state round =
 
                 -- return a copy of the state list
                 -- with each of the computed cells replaced 
-                replace (zip gg [a'', b'', c'', d'']) state
+                [a'', b'', c'', d'']
         in
 
-        foldl' applyGToState state [ (0, [0,4,8,12]),   -- 4 columns
-                                     (1, [1,5,9,13]), 
-                                     (2, [2,6,10,14]), 
-                                     (3, [3,7,11,15]), 
-                                     (4, [0,5,10,15]),  -- 4 diagonals
-                                     (5, [1,6,11,12]), 
-                                     (6, [2,7,8,13]), 
-                                     (7, [3,4,9,14]) ] 
-                
+        let rotate4 m = 
+                map (!! 0) m :
+                map (!! 1) m : 
+                map (!! 2) m : 
+                map (!! 3) m : []
+        in
+
+        let makeColumns state = 
+                let cols = map (applyGTo4 state) [ (0, [0,4,8,12]),
+                                                   (1, [1,5,9,13]), 
+                                                   (2, [2,6,10,14]), 
+                                                   (3, [3,7,11,15]) ] 
+                in
+                concat $ rotate4 cols
+        in
+        let makeDiagonals state = 
+                let diags = map (applyGTo4 state) [ (4, [0,5,10,15]),  -- 4 diagonals
+                                                    (5, [1,6,11,12]), 
+                                                    (6, [2,7,8,13]), 
+                                                    (7, [3,4,9,14]) ] 
+
+                    cols = rotate4 diags
+                    shiftRowRight n row = drop j row ++ take j row
+                                       where j = length row - n
+                in
+                concat [ shiftRowRight 0 (cols !! 0),
+                         shiftRowRight 1 (cols !! 1),
+                         shiftRowRight 2 (cols !! 2),
+                         shiftRowRight 3 (cols !! 3) ]
+
+        in
+        makeDiagonals $ makeColumns state
+
 
 
 -- initial 16 word state for compressing a block

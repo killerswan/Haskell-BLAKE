@@ -3,14 +3,15 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module SHA3.BLAKE
-( blake256
-, initialValues
-, initialState
-, blocks
-, blakeRound
-)
-where
+module SHA3.BLAKE ( blake256,
+                    initialValues,
+                    initialState,
+                    blocks,
+                    blakeRound
+                    --blake512,
+                    --blake224,
+                    --blake384,
+                    ) where
 
 
 import Data.Bits
@@ -53,21 +54,6 @@ sigmaTable = [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ]
               [ 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0 ]]
 
 
--- replace items in a list
-replace :: [(Int, a)] -> [a] -> [a]
-replace newWords words = 
-    let f (i, word) =  
-            let newWord = lookup i newWords
-            in
-
-            if isJust newWord then
-                fromJust newWord
-            else
-                word
-    in
-    map f $ zip [0..] words
-
-
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 -- PENDING: THERE IS AN ERROR IN THIS FUNCTION...
@@ -102,8 +88,7 @@ blakeRound mode messageblock state round =
                     b'' = (b' `xor` c'') `rotate` r3
                 in
 
-                -- return a copy of the state list
-                -- with each of the computed cells replaced 
+                -- out
                 [a'', b'', c'', d'']
         in
 
@@ -115,7 +100,7 @@ blakeRound mode messageblock state round =
         in
 
         let makeColumns state = 
-                let cols = map (applyGTo4 state) [ (0, [0,4,8,12]),
+                let cols = map (applyGTo4 state) [ (0, [0,4,8,12]), -- 4 columns
                                                    (1, [1,5,9,13]), 
                                                    (2, [2,6,10,14]), 
                                                    (3, [3,7,11,15]) ] 
@@ -138,8 +123,9 @@ blakeRound mode messageblock state round =
                          shiftRowRight 3 (cols !! 3) ]
 
         in
-        makeDiagonals $ makeColumns state
 
+        -- this is actually uglier than the fold I had before...
+        makeDiagonals $ makeColumns state
 
 
 -- initial 16 word state for compressing a block
@@ -156,7 +142,7 @@ initialState h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
+--compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
 compress mode h m s t =
     let 
         -- rounds to iterate
@@ -196,6 +182,8 @@ from8toN size words =
     -- fold into words
     loop [] words
 
+{-
+-}
 
 -- 16 words
 type MessageBlock = [Word32]
@@ -210,6 +198,9 @@ type Hash = [Word32]
 -- cumulative bit length
 type Counter = [Word32]
 
+data BW a = BW32 [Word32] | BW64 [Word64]
+
+
 -- IS THERE A WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
 -- how about with vectors or repa or something?
 
@@ -219,6 +210,7 @@ type Counter = [Word32]
 -- with a counter per block
 blocks mode message = 
 
+    --let loop :: (Bits a, Bounded a, Enum a, Eq a, Integral a, Num a, Ord a, Read a, Real a, Show a) => Integer -> [Word8] -> [( [a], [a] )]
     let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
         loop counter message =
             let 
@@ -289,9 +281,16 @@ blake mode salt message =
     foldl' compress' ivs $ blocks mode message
      
 
+blake256 :: [Word32] -> [Word8] -> [Word32]
 blake256 = blake 256
 
+{-
+blake224 :: [Word32] -> [Word8] -> [Word32]
+blake224 = blake 224
 
+blake512 :: [Word64] -> [Word8] -> [Word64]
+blake512 = blake 512
 
-
-
+blake384 :: [Word64] -> [Word8] -> [Word64]
+blake384 = blake 384
+-}

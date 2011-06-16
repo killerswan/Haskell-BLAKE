@@ -190,9 +190,11 @@ blakeRoundX bitshiftKernel messageblock state round =
 -- initial 16 word state for compressing a block
 -- here, my counter 't' contains [high,low] words 
 -- rather than reverse it in `blocks` below, i changed the numbering here
-initialState h s t = 
+initialState256 = initialStateX constants256
+initialState512 = initialStateX constants512
+initialStateX constants h s t = 
     h ++ 
-    zipWith xor (s ++ [t!!1, t!!1, t!!0, t!!0]) (take 8 constants256)
+    zipWith xor (s ++ [t!!1, t!!1, t!!0, t!!0]) (take 8 constants)
 
 
 -- BLAKE-256 compression of one message block
@@ -203,12 +205,12 @@ initialState h s t =
 -- t is a counter       0-1
 -- return h'
 --compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
-compress256 = compress 14
-compress512 = compress 16
-compress rounds h m s t =
+compress256 = compress blakeRound256 14 initialState256
+compress512 = compress blakeRound512 16 initialState512
+compress roundFunc rounds initialState h m s t =
     let 
-        -- do 14 rounds on this messageblock for 256-bit
-        v = foldl' (blakeRound256 m) (initialState h s t) [0..rounds-1]
+        -- e.g., do 14 rounds on this messageblock for 256-bit
+        v = foldl' (roundFunc m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize

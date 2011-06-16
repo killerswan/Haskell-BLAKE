@@ -81,24 +81,15 @@ sigmaTable =
 
 
 -- generic bit shifting
--- BLAKE-256 bit shifting
--- BLAKE-512 bit shifting
---
--- BLAKE-256 round function
--- apply multiple G computations for a single round
-blakeRound mode messageblock state round = 
-
         -- perform a given Gi within the round function
-        let applyGTo4 state (ii, cells) = 
+applyGTo4 state messageblock round (ii, cells) = 
                 let 
                     -- cells to handle
                     [a,b,c,d] = map (state !!) cells
                 
                     -- rotations
-                    [r0,r1,r2,r3] = 
-                        case mode of 
-                            256 -> [-16, -12,  -8,  -7]
-                            512 -> [-32, -25, -16, -11]
+                    [r0,r1,r2,r3] = [-16, -12,  -8,  -7]
+           --                 512 -> [-32, -25, -16, -11]
 
                     -- get sigma
                     sigma n = sigmaTable !! (round `mod` 10) !! n
@@ -119,7 +110,13 @@ blakeRound mode messageblock state round =
 
                 -- out
                 [a'', b'', c'', d'']
-        in
+
+-- BLAKE-256 bit shifting
+-- BLAKE-512 bit shifting
+--
+-- BLAKE-256 round function
+-- apply multiple G computations for a single round
+blakeRound mode messageblock state round = 
 
         let rotate4 m = 
                 map (!! 0) m :
@@ -128,24 +125,25 @@ blakeRound mode messageblock state round =
                 map (!! 3) m : []
         in
 
-        let bs = (applyGTo4 state)
+        let bs = (applyGTo4 state messageblock round)
         in
 
         let makeColumns state = 
                 let cols = map bs
-                                         [ (0, [0,4,8,12]), -- 4 columns
-                                           (1, [1,5,9,13]), 
-                                           (2, [2,6,10,14]), 
-                                           (3, [3,7,11,15]) ] 
+                             [ (0, [0,4,8,12]), -- 4 columns
+                               (1, [1,5,9,13]), 
+                               (2, [2,6,10,14]), 
+                               (3, [3,7,11,15]) ] 
                 in
                 concat $ rotate4 cols
         in
         let makeDiagonals state = 
-                let diags = map (applyGTo4 state)
-                                          [ (4, [0,5,10,15]),  -- 4 diagonals
-                                            (5, [1,6,11,12]), 
-                                            (6, [2,7,8,13]), 
-                                            (7, [3,4,9,14]) ] 
+                let diags = map (applyGTo4 state messageblock round) -- WHY GOD WHY??
+                --let diags = map bs
+                              [ (4, [0,5,10,15]),  -- 4 diagonals
+                                (5, [1,6,11,12]), 
+                                (6, [2,7,8,13]), 
+                                (7, [3,4,9,14]) ] 
 
                     cols = rotate4 diags
                     shiftRowRight n row = drop j row ++ take j row

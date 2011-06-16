@@ -241,8 +241,11 @@ from8toN size words =
     -- fold into words
     loop [] words
 
+
 {-
--}
+
+-- IS THERE A GRACEFUL  WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
+-- how about with vectors or repa or something?
 
 -- 16 words
 type MessageBlock = [Word32]
@@ -257,25 +260,28 @@ type Hash = [Word32]
 -- cumulative bit length
 type Counter = [Word32]
 
-data BW a = BW32 [Word32] | BW64 [Word64]
-
-
--- IS THERE A WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
--- how about with vectors or repa or something?
+-}
 
 
 -- BLAKE-256 padding
 -- blocks of twice the hash size, which is 8 words
 -- with a counter per block
-blocks mode message = 
+--
+-- 256
+blocks256 :: [Word8] -> [([Word32], [Word32])]
+blocks256 = blocksX 32 0x01
+--
+-- 512
+blocks512 :: [Word8] -> [([Word64], [Word64])]
+blocks512 = blocksX 64 0x01
+--
+-- generic
+blocksX wordSize paddingTerminator message = 
 
-    --let loop :: (Bits a, Bounded a, Enum a, Eq a, Integral a, Num a, Ord a, Read a, Real a, Show a) => Integer -> [Word8] -> [( [a], [a] )]
-    let loop :: Integer -> [Word8] -> [( MessageBlock, Counter )]
+    let 
+        loop :: (Bits a, Integral a, Num a) => Integer -> [Word8] -> [( [a], [a] )]
         loop counter message =
             let 
-                (paddingTerminator, wordSize) = case mode of 
-                                                    256 -> (0x01, 32)
-                                                    512 -> (0x01, 64)
                 hashSize = 8 * wordSize -- i.e. 256
                 blockSize = 16 * wordSize
                 blockBytes = blockSize `div` 8
@@ -318,8 +324,8 @@ blocks mode message =
             
                 case length final of
                     -- each message block is padded to 16 words
-                    16 -> [( final, splitCounter )]
-                    32 -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
+                    16        -> [( final, splitCounter )]
+                    32        -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
                     otherwise -> error "we have created a monster! padding --> nonsense"
             
             else
@@ -331,20 +337,17 @@ blocks mode message =
         
 
 --blake :: Int -> Salt -> [Word8] -> Hash
-blake mode salt message =
-    let ivs = case mode of
-                256 -> initialValues256
-        
-        compress' h (m,t) = compress256 h m salt t
+blake compress blocks initialValues salt message =
+    let compress' h (m,t) = compress h m salt t
     in
-    foldl' compress' ivs $ blocks mode message
+    foldl' compress' initialValues $ blocks message
      
 
 blake256 :: [Word32] -> [Word8] -> [Word32]
-blake256 = blake 256
+blake256 = blake compress256 blocks256 initialValues256
 
 blake512 :: [Word64] -> [Word8] -> [Word64]
-blake512 a b = []
+blake512 = blake compress512 blocks512 initialValues512
 
 {-
 blake224 :: [Word32] -> [Word8] -> [Word32]

@@ -37,8 +37,8 @@ test_init =
 
 test_round_1 = 
     let block1 = head $ blocks 256 [0]
-        test_init_prep    = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues block1
-        test_round_1_prep = (\ (m,t) -> blakeRound 256 m test_init_prep 0) block1
+        test_init_prep    = (\ s h (m,t) -> initialState h s t) [0,0,0,0] initialValues256 block1
+        test_round_1_prep = (\ (m,t) -> blakeRound256 m test_init_prep 0) block1
     in
     "BLAKE-256, one round on '0x00'" ~:
     test_round_1_prep ~=? [0xE78B8DFE, 0x150054E7, 0xCABC8992, 0xD15E8984, 
@@ -99,7 +99,7 @@ test_blake224 =
 tests = TestList [ -- "init"                 ~: test_init,
                    -- "blocks, 1"            ~: test_blocks1,
                    -- "blocks, 2"            ~: test_blocks2,
-                   -- "round function, once" ~: test_round_1,
+                   --"round function, once" ~: test_round_1,
                    "BLAKE-256"            ~: test_blake256,
                    "BLAKE-512"            ~: test_blake512--,
                    -- "BLAKE-224"            ~: test_blake224,

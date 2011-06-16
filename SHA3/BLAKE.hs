@@ -79,15 +79,20 @@ sigmaTable =
      [ 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0 ]]
 
 
+
+-- generic bit shifting
+-- BLAKE-256 bit shifting
+-- BLAKE-512 bit shifting
+--
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
 blakeRound mode messageblock state round = 
 
         -- perform a given Gi within the round function
-        let applyGTo4 state (ii,gg) = 
+        let applyGTo4 state (ii, cells) = 
                 let 
                     -- cells to handle
-                    [a,b,c,d] = map (state !!) gg
+                    [a,b,c,d] = map (state !!) cells
                 
                     -- rotations
                     [r0,r1,r2,r3] = 
@@ -123,19 +128,24 @@ blakeRound mode messageblock state round =
                 map (!! 3) m : []
         in
 
+        let bs = (applyGTo4 state)
+        in
+
         let makeColumns state = 
-                let cols = map (applyGTo4 state) [ (0, [0,4,8,12]), -- 4 columns
-                                                   (1, [1,5,9,13]), 
-                                                   (2, [2,6,10,14]), 
-                                                   (3, [3,7,11,15]) ] 
+                let cols = map bs
+                                         [ (0, [0,4,8,12]), -- 4 columns
+                                           (1, [1,5,9,13]), 
+                                           (2, [2,6,10,14]), 
+                                           (3, [3,7,11,15]) ] 
                 in
                 concat $ rotate4 cols
         in
         let makeDiagonals state = 
-                let diags = map (applyGTo4 state) [ (4, [0,5,10,15]),  -- 4 diagonals
-                                                    (5, [1,6,11,12]), 
-                                                    (6, [2,7,8,13]), 
-                                                    (7, [3,4,9,14]) ] 
+                let diags = map (applyGTo4 state)
+                                          [ (4, [0,5,10,15]),  -- 4 diagonals
+                                            (5, [1,6,11,12]), 
+                                            (6, [2,7,8,13]), 
+                                            (7, [3,4,9,14]) ] 
 
                     cols = rotate4 diags
                     shiftRowRight n row = drop j row ++ take j row

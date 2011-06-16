@@ -120,15 +120,22 @@ bitshift512 = bitshiftX constants512 [-32, -25, -16, -11]
 
 
 -- BLAKE-256 round function
+blakeRound256 = blakeRoundX bitshift256
+
+-- BLAKE-512 round function
+blakeRound512 = blakeRoundX bitshift512
+
+
+-- round function
 -- apply multiple G computations for a single round
 --
 -- This is uglier than the fold I had before,
 -- but this can be parallelized a teeny bit...
-blakeRound mode messageblock state round = 
+blakeRoundX bitshiftKernel messageblock state round = 
 
         let 
             -- perform one G
-            g state = bitshift256 state messageblock round
+            g state = bitshiftKernel state messageblock round
 
 
             -- rotate a 2d list
@@ -201,7 +208,7 @@ compress mode h m s t =
                     512 -> 16
 
         -- do 14 rounds on this messageblock for 256-bit
-        v = foldl' (blakeRound mode m) (initialState h s t) [0..rounds-1]
+        v = foldl' (blakeRound256 m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize

@@ -7,10 +7,10 @@ module SHA3.BLAKE ( blake256,
                     initialValues,
                     initialState,
                     blocks,
-                    blakeRound
-                    --blake512,
+                    blakeRound,
+                    blake512--,
                     --blake224,
-                    --blake384,
+                    --blake384
                     ) where
 
 
@@ -285,7 +285,7 @@ blake256 :: [Word32] -> [Word8] -> [Word32]
 blake256 = blake 256
 
 blake512 :: [Word64] -> [Word8] -> [Word64]
-blake512 = blake 512
+blake512 a b = []
 
 {-
 blake224 :: [Word32] -> [Word8] -> [Word32]

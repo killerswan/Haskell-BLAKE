@@ -10,6 +10,7 @@ import qualified Data.ByteString.Lazy as B
 
 -- BLAKE-256 --------------------------------------------------------------------------
 
+{-
 test_blocks1 = 
     "message padding into blocks, 8 zeroes" ~:
     (blocks 256 [0]) ~=? [( [0x00800000, 0x00000000, 0x00000000, 0x00000000, 
@@ -44,6 +45,7 @@ test_round_1 =
                            0x0669DF2A, 0x084E66E3, 0xA516C4B3, 0x339DED5B, 
                            0x26051FB7, 0x09D18B27, 0x3A2E8FA8, 0x488C6059, 
                            0x13E513E6, 0xB37ED53E, 0x16CAC7B9, 0x75AF6DF6]
+-}
 
 
 test_blake256 = 
@@ -56,7 +58,7 @@ test_blake256 =
             (blake256 [0,0,0,0] $ take 72 $ repeat 0) [0xD419BAD3, 0x2D504FB7, 0xD44D460C, 0x42C5593F, 
                                                        0xE544FA4C, 0x135DEC31, 0xE21BD9AB, 0xDCC22D41]
 
-{-
+
 test_blake512 = 
     TestCase $ do
         assertEqual "BLAKE-512 of '0x00'"
@@ -70,6 +72,7 @@ test_blake512 =
              0x1374B8A38BBA7974, 0xE7F6EF79CAB16F22, 0xCE1E649D6E01AD95, 0x89C213045D545DDE]
 
 
+{-
 test_blake384 = 
     TestCase $ do
         assertEqual "BLAKE-384 of '0x00'"
@@ -90,26 +93,17 @@ test_blake224 =
         assertEqual "BLAKE-256 of 72 by '0x00'" 
             (blake256 [0,0,0,0] $ take 72 $ repeat 0)
             [0xF5AA00DD, 0x1CB847E3, 0x140372AF, 0x7B5C46B4, 0x888D82C8, 0xC0A91791, 0x3CFB5D04]
-
 -}
 
 
--- BLAKE-512 --------------------------------------------------------------------------
-
-
-
-
--- all --------------------------------------------------------------------------
-
-tests = TestList
-                 [ "init"                 ~: test_init,
-                   "blocks, 1"            ~: test_blocks1,
-                   "blocks, 2"            ~: test_blocks2,
-                   "round function, once" ~: test_round_1,
-                   "BLAKE-256"            ~: test_blake256 --,
-                -- "BLAKE-224"            ~: test_blake224,
-                -- "BLAKE-512"            ~: test_blake512,
-                -- "BLAKE-384"            ~: test_blake384,
+tests = TestList [ -- "init"                 ~: test_init,
+                   -- "blocks, 1"            ~: test_blocks1,
+                   -- "blocks, 2"            ~: test_blocks2,
+                   -- "round function, once" ~: test_round_1,
+                   "BLAKE-256"            ~: test_blake256,
+                   "BLAKE-512"            ~: test_blake512--,
+                   -- "BLAKE-224"            ~: test_blake224,
+                   -- "BLAKE-384"            ~: test_blake384
                  ]
 
 

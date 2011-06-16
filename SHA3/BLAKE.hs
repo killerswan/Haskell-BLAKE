@@ -40,7 +40,7 @@ constants = [ 0x243f6a88, 0x85a308d3,
               0x3f84d5b5, 0xb5470917 ]
 
 
--- BLAKE-256 permutations of 0 to 15
+-- BLAKE-256 permutations of {0..15}
 sigmaTable :: [[ Int ]]
 sigmaTable = [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ], 
               [ 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 ], 
@@ -284,12 +284,12 @@ blake mode salt message =
 blake256 :: [Word32] -> [Word8] -> [Word32]
 blake256 = blake 256
 
+blake512 :: [Word64] -> [Word8] -> [Word64]
+blake512 = blake 512
+
 {-
 blake224 :: [Word32] -> [Word8] -> [Word32]
 blake224 = blake 224
-
-blake512 :: [Word64] -> [Word8] -> [Word64]
-blake512 = blake 512
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
 blake384 = blake 384

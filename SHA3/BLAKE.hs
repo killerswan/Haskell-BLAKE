@@ -158,7 +158,7 @@ blakeRound mode messageblock state round =
 
             makeDiagonals state = 
                 let 
-                    g = applyGTo4 state messageblock round
+ --                   g = applyGTo4 state messageblock round
                     diags = map g g47
                     cols = rotate4 diags
                     shiftRowRight n row = drop j row ++ take j row

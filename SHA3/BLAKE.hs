@@ -126,7 +126,7 @@ blakeRound256 = blakeRoundX bitshift256
 blakeRound512 = blakeRoundX bitshift512
 
 
--- round function
+-- generic round function
 -- apply multiple G computations for a single round
 --
 -- This is uglier than the fold I had before,
@@ -176,6 +176,8 @@ blakeRoundX bitshiftKernel messageblock state round =
                     shiftRowRight n row = drop j row ++ take j row
                                             where j = length row - n
                 in
+
+                -- clunky: TODO
                 concat [ shiftRowRight 0 (cols !! 0),
                          shiftRowRight 1 (cols !! 1),
                          shiftRowRight 2 (cols !! 2),
@@ -194,19 +196,17 @@ initialState h s t =
 
 
 -- BLAKE-256 compression of one message block
+-- rounds is the number of rounds to iterate
 -- h is a chain         0-7
 -- m is a message block 0-15
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
 --compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
-compress mode h m s t =
+compress256 = compress 14
+compress512 = compress 16
+compress rounds h m s t =
     let 
-        -- rounds to iterate
-        rounds = case mode of
-                    256 -> 14
-                    512 -> 16
-
         -- do 14 rounds on this messageblock for 256-bit
         v = foldl' (blakeRound256 m) (initialState h s t) [0..rounds-1]
     in
@@ -333,7 +333,7 @@ blake mode salt message =
     let ivs = case mode of
                 256 -> initialValues256
         
-        compress' h (m,t) = compress mode h m salt t
+        compress' h (m,t) = compress256 h m salt t
     in
     foldl' compress' ivs $ blocks mode message
      

@@ -80,22 +80,21 @@ sigmaTable =
 
 
 
+-- bit shift
+-- perform a given Gi within the round function
+--
 -- generic bit shifting
-        -- perform a given Gi within the round function
-applyGTo4 state messageblock round (ii, cells) = 
+bitshiftX :: Bits a => [a] -> [Int] -> [a] -> [a] -> Int -> (Int, [Int]) -> [a]
+bitshiftX constants [r0,r1,r2,r3] state messageblock round (ii, cells) = 
                 let 
                     -- cells to handle
                     [a,b,c,d] = map (state !!) cells
                 
-                    -- rotations
-                    [r0,r1,r2,r3] = [-16, -12,  -8,  -7]
-           --                 512 -> [-32, -25, -16, -11]
-
                     -- get sigma
                     sigma n = sigmaTable !! (round `mod` 10) !! n
 
                     messageword n = messageblock !! sigma n
-                    constant    n = constants256 !! sigma n
+                    constant    n = constants !! sigma n
             
                     -- compute the round
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
@@ -110,57 +109,63 @@ applyGTo4 state messageblock round (ii, cells) =
 
                 -- out
                 [a'', b'', c'', d'']
-
+--
 -- BLAKE-256 bit shifting
+bitshift256 :: [Word32] -> [Word32] -> Int -> (Int, [Int]) -> [Word32]
+bitshift256 = bitshiftX constants256 [-16, -12,  -8,  -7]
+--
 -- BLAKE-512 bit shifting
-
-
-
-
--- i, cells for each Gi
--- columns
-g03 = 
-        [ (0, [0,4,8,12]),
-          (1, [1,5,9,13]), 
-          (2, [2,6,10,14]), 
-          (3, [3,7,11,15]) ] 
--- diagonals
-g47 = 
-        [ (4, [0,5,10,15]),
-          (5, [1,6,11,12]), 
-          (6, [2,7,8,13]), 
-          (7, [3,4,9,14]) ] 
-
-
--- rotate a 2d list
-rotate4 m = 
-    map (!! 0) m :
-    map (!! 1) m : 
-    map (!! 2) m : 
-    map (!! 3) m : []
+bitshift512 :: [Word64] -> [Word64] -> Int -> (Int, [Int]) -> [Word64]
+bitshift512 = bitshiftX constants512 [-32, -25, -16, -11]
 
 
 -- BLAKE-256 round function
 -- apply multiple G computations for a single round
+--
+-- This is uglier than the fold I had before,
+-- but this can be parallelized a teeny bit...
 blakeRound mode messageblock state round = 
 
         let 
-            g = applyGTo4 state messageblock round
+            -- perform one G
+            g state = bitshift256 state messageblock round
 
 
-            makeColumns state = 
+            -- rotate a 2d list
+            rotate4 m = 
+                map (!! 0) m :
+                map (!! 1) m : 
+                map (!! 2) m : 
+                map (!! 3) m : []
+
+
+            -- apply G to columns
+            -- then rotate result back into order
+            applyColumns state = 
                 let 
---                    g = applyGTo4 state messageblock round
-                    cols = map g g03
+                    cols = map (g state)
+                                -- i, cells for each Gi
+                                [ (0, [0,4,8,12]),
+                                  (1, [1,5,9,13]), 
+                                  (2, [2,6,10,14]), 
+                                  (3, [3,7,11,15]) ] 
                 in
                 concat $ rotate4 cols
 
 
-            makeDiagonals state = 
+            -- apply G to diagonals
+            -- then rotate result back into order
+            applyDiagonals state = 
                 let 
- --                   g = applyGTo4 state messageblock round
-                    diags = map g g47
+                    diags = map (g state)
+                                -- i, cells for each Gi
+                                [ (4, [0,5,10,15]),
+                                  (5, [1,6,11,12]), 
+                                  (6, [2,7,8,13]), 
+                                  (7, [3,4,9,14]) ] 
+
                     cols = rotate4 diags
+
                     shiftRowRight n row = drop j row ++ take j row
                                             where j = length row - n
                 in
@@ -168,11 +173,9 @@ blakeRound mode messageblock state round =
                          shiftRowRight 1 (cols !! 1),
                          shiftRowRight 2 (cols !! 2),
                          shiftRowRight 3 (cols !! 3)  ]
-
         in
 
-        -- this is actually uglier than the fold I had before...
-        makeDiagonals $ makeColumns state
+        applyDiagonals $ applyColumns state
 
 
 -- initial 16 word state for compressing a block

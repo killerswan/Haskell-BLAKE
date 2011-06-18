@@ -77,16 +77,15 @@ options = [ Option "a" ["algorithm"]
 
 
 -- print a list of numbers as a hex string
-hex32 ws = (printf "%08x") =<< ws
+hex32 ws = (printf "%08x" ) =<< ws
 hex64 ws = (printf "%016x") =<< ws
 
 
 -- print out the BLAKE hash followed by the file name
 -- generic
-printHashX hex blake salt path = 
+printHashX hex blake salt path message = 
     do
-        msg <- B.readFile path
-        hash <- return $ hex $ blake salt (B.unpack msg)
+        hash <- return $ hex $ blake salt $ B.unpack message
         putStrLn $ hash ++ " *" ++ path
 
 -- 256
@@ -108,10 +107,18 @@ main =
         let Options { check = check,
                       algorithm = algorithm,
                       salt = salt} = opts
-        sequence $ map (printHash256 [0,0,0,0]) nonOptions
+
+        if length nonOptions > 0
+        then sequence $ map (\path -> do 
+                                        message <- if path == "-"
+                                                   then B.getContents 
+                                                   else B.readFile path
+                                        printHash256 [0,0,0,0] path message) nonOptions
+        else sequence [do 
+                            message <- B.getContents
+                            printHash256 [0,0,0,0] "-" message]
 
 
--- TODO: implement these options and stdin
---       implement check mode
+-- TODO: implement these options, including check mode
         
 

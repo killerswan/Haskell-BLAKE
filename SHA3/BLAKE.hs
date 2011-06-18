@@ -3,20 +3,11 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module SHA3.BLAKE ( blake256,
-                    --initialValues256,
-                    --initialState,
-                    --blocks,
-                    --blakeRound,
-                    blake512--,
-                    --blake224,
-                    --blake384
-                    ) where
-
+module SHA3.BLAKE ( blake256, blake512 {-, blake224, blake384-} ) where
 
 import Data.Bits
 import Data.Word
-import Data.List -- needed for zipWith4
+import Data.List  -- needed for zipWith4
 import Data.Maybe -- needed for isJust, fromJust
 
 
@@ -351,8 +342,8 @@ blake512 = blake compress512 blocks512 initialValues512
 
 {-
 blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 = blake 224
+blake224 = 
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 = blake 384
+blake384 = 
 -}

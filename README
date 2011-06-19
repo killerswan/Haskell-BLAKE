@@ -1,4 +1,4 @@
-Haskell-Blake
+Haskell-BLAKE
 Kevin Cantu <me@kevincantu.org>
 May 2011
 
@@ -10,9 +10,9 @@ algorithms in Haskell.
 NIST SHA-3:
     http://en.wikipedia.org/wiki/NIST_hash_function_competition
 
-Blake website:
+BLAKE website:
     http://131002.net/blake/
 
-The Blake proposal: 
+The BLAKE proposal: 
     http://131002.net/blake/blake.pdf
 

@@ -3,7 +3,7 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module SHA3.BLAKE ( blake256, blake512 {-, blake224, blake384-} ) where
+module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
 
 import Data.Bits
 import Data.Word
@@ -340,10 +340,10 @@ blake256 = blake compress256 blocks256 initialValues256
 blake512 :: [Word64] -> [Word8] -> [Word64]
 blake512 = blake compress512 blocks512 initialValues512
 
-{-
 blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 = 
+blake224 a b = []
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 = 
--}
+blake384 a b = []
+
+

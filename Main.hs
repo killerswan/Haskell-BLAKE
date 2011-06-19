@@ -14,8 +14,6 @@ import IO
 import Char
 import Text.Printf
 import Control.Monad
---import System.Console.CmdArgs.Implicit
---import System.Console.CmdLib
 import System.Console.GetOpt
 
 data Options = Options { help      :: Bool

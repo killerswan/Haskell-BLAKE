@@ -93,6 +93,18 @@ printHash256 = printHashX hex32 blake256
 printHash512 = printHashX hex64 blake512
 
 
+hashInput salt = 
+  do 
+    message <- B.getContents
+    printHash256 [0,0,0,0] "-" message
+
+
+hashFile salt path =
+  do
+    message <- if path == "-"
+               then B.getContents 
+               else B.readFile path
+    printHash256 [0,0,0,0] path message
 
 
 main = 
@@ -107,16 +119,7 @@ main =
                       salt = salt} = opts
 
         if length nonOptions > 0
-        then sequence $ map (\path -> do 
-                                        message <- if path == "-"
-                                                   then B.getContents 
-                                                   else B.readFile path
-                                        printHash256 [0,0,0,0] path message) nonOptions
-        else sequence [do 
-                            message <- B.getContents
-                            printHash256 [0,0,0,0] "-" message]
+        then mapM_ (hashFile [0,0,0,0]) nonOptions
+        else hashInput [0,0,0,0]
 
-
--- TODO: implement these options, including check mode
-        
 

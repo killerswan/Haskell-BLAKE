@@ -34,7 +34,7 @@ options = [ Option "a" ["algorithm"]
                    (ReqArg
                         (\arg opt -> let alg = read arg :: Integer
                                      in case alg of 
-                                            x | x == 256 || x == 512 -> return opt { salt = alg }
+                                            x | x == 256 || x == 512 -> return opt { algorithm = alg }
                                             otherwise -> error "please choose a working algorithm size")
                         "BITS")
                    "256, 512, 224, 384 (default: 256)"
@@ -45,10 +45,10 @@ options = [ Option "a" ["algorithm"]
 
           , Option "s" ["salt"] 
                    (ReqArg
-                        (\arg opt -> let i = read arg :: Integer
+                        (\arg opt -> let s = read arg :: Integer
                                      in 
-                                     if i >= 0
-                                     then return opt { salt = i }
+                                     if s >= 0
+                                     then return opt { salt = s }
                                      else error "please specify a positive salt")
                         "SALT")
                    "positive integer salt (default: 0)"
@@ -93,18 +93,18 @@ printHash256 = printHashX hex32 blake256
 printHash512 = printHashX hex64 blake512
 
 
-hashInput salt = 
+hashInput f salt = 
   do 
     message <- B.getContents
-    printHash256 [0,0,0,0] "-" message
+    f [0,0,0,0] "-" message
 
 
-hashFile salt path =
+hashFile f salt path =
   do
     message <- if path == "-"
                then B.getContents 
                else B.readFile path
-    printHash256 [0,0,0,0] path message
+    f [0,0,0,0] path message
 
 
 main = 
@@ -118,8 +118,12 @@ main =
                       algorithm = algorithm,
                       salt = salt} = opts
 
-        if length nonOptions > 0
-        then mapM_ (hashFile [0,0,0,0]) nonOptions
-        else hashInput [0,0,0,0]
+        case (algorithm, length nonOptions) of 
+          (256, 0) -> hashInput printHash256 [0,0,0,0]
+          (256, _) -> mapM_ (hashFile printHash256 [0,0,0,0]) nonOptions
+          (512, 0) -> hashInput printHash512 [0,0,0,0]
+          (512, _) -> mapM_ (hashFile printHash512 [0,0,0,0]) nonOptions
+          (  _, _) -> error "unavailable algorithm size"
+        
 
 

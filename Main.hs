@@ -19,14 +19,20 @@ import System.Console.GetOpt
 data Options = Options { help      :: Bool
                        , check     :: Bool
                        , algorithm :: Integer
-                       , salt      :: Integer 
+                       , salt0     :: Integer 
+                       , salt1     :: Integer 
+                       , salt2     :: Integer 
+                       , salt3     :: Integer 
                        }
 
 defaultOpts :: Options
 defaultOpts = Options { help = False
                       , check = False
                       , algorithm = 256
-                      , salt = 0
+                      , salt0 = 0
+                      , salt1 = 0
+                      , salt2 = 0
+                      , salt3 = 0
                       }
 
 options :: [ OptDescr (Options -> IO Options) ]
@@ -43,6 +49,7 @@ options = [ Option "a" ["algorithm"]
                    (NoArg $ \opt -> return opt { check = True })
                    "positive integer salt (default: 0)"
 
+{-
           , Option "s" ["salt"] 
                    (ReqArg
                         (\arg opt -> let s = read arg :: Integer
@@ -52,6 +59,46 @@ options = [ Option "a" ["algorithm"]
                                      else error "please specify a positive salt")
                         "SALT")
                    "positive integer salt (default: 0)"
+-}
+          , Option "" ["salt0"] 
+                   (ReqArg
+                        (\arg opt -> let s = read arg :: Integer
+                                     in 
+                                     if s >= 0
+                                     then return opt { salt0 = s }
+                                     else error "please specify a positive salt")
+                        "SALT")
+                   "positive integer salt, word 1/4 (default: 0)"
+
+          , Option "" ["salt1"] 
+                   (ReqArg
+                        (\arg opt -> let s = read arg :: Integer
+                                     in 
+                                     if s >= 0
+                                     then return opt { salt1 = s }
+                                     else error "please specify a positive salt")
+                        "SALT")
+                   "positive integer salt, word 2/4 (default: 0)"
+
+          , Option "" ["salt2"] 
+                   (ReqArg
+                        (\arg opt -> let s = read arg :: Integer
+                                     in 
+                                     if s >= 0
+                                     then return opt { salt2 = s }
+                                     else error "please specify a positive salt")
+                        "SALT")
+                   "positive integer salt, word 3/4 (default: 0)"
+
+          , Option "" ["salt3"] 
+                   (ReqArg
+                        (\arg opt -> let s = read arg :: Integer
+                                     in 
+                                     if s >= 0
+                                     then return opt { salt3 = s }
+                                     else error "please specify a positive salt")
+                        "SALT")
+                   "positive integer salt, word 4/4 (default: 0)"
 
           , Option "h" ["help"] 
                    (NoArg  $ \_ -> do
@@ -96,15 +143,16 @@ printHash512 = printHashX hex64 blake512
 hashInput f salt = 
   do 
     message <- B.getContents
-    f [0,0,0,0] "-" message
+    f salt "-" message
 
 
 hashFile f salt path =
-  do
-    message <- if path == "-"
-               then B.getContents 
-               else B.readFile path
-    f [0,0,0,0] path message
+    if path == "-"
+    then hashInput f salt
+    else
+      do
+        message <- B.readFile path
+        f salt path message
 
 
 main = 
@@ -114,16 +162,23 @@ main =
         let (actions, nonOptions, errors) = getOpt RequireOrder options args
         opts <- foldl (>>=) (return defaultOpts) actions
         
-        let Options { check = check,
-                      algorithm = algorithm,
-                      salt = salt} = opts
+        let Options { check     = check
+                    , algorithm = algorithm
+                    , salt0      = salt0
+                    , salt1     = salt1
+                    , salt2     = salt2
+                    , salt3     = salt3
+                    } = opts
+
+
+        -- PENDING: WILL NOT COMPILE BOTH 256 and 512 LIKE THIS
+        let salt = map fromIntegral [salt0,salt1,salt2,salt3]
 
         case (algorithm, length nonOptions) of 
-          (256, 0) -> hashInput printHash256 [0,0,0,0]
-          (256, _) -> mapM_ (hashFile printHash256 [0,0,0,0]) nonOptions
-          (512, 0) -> hashInput printHash512 [0,0,0,0]
-          (512, _) -> mapM_ (hashFile printHash512 [0,0,0,0]) nonOptions
+          (256, 0) -> hashInput printHash256 salt
+          (256, _) -> mapM_ (hashFile printHash256 salt) nonOptions
+--          (512, 0) -> hashInput printHash512 salt
+--          (512, _) -> mapM_ (hashFile printHash512 salt) nonOptions
           (  _, _) -> error "unavailable algorithm size"
         
-
 

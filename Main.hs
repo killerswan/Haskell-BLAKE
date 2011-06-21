@@ -171,14 +171,21 @@ main =
                     } = opts
 
 
-        -- PENDING: WILL NOT COMPILE BOTH 256 and 512 LIKE THIS
-        let salt = map fromIntegral [salt0,salt1,salt2,salt3]
+        case algorithm of 
+          256 -> 
+            let salt = map fromIntegral [salt0,salt1,salt2,salt3]
+            in
+            case length nonOptions of
+              0 -> hashInput printHash256 salt
+              _ -> mapM_ (hashFile printHash256 salt) nonOptions
 
-        case (algorithm, length nonOptions) of 
-          (256, 0) -> hashInput printHash256 salt
-          (256, _) -> mapM_ (hashFile printHash256 salt) nonOptions
---          (512, 0) -> hashInput printHash512 salt
---          (512, _) -> mapM_ (hashFile printHash512 salt) nonOptions
-          (  _, _) -> error "unavailable algorithm size"
-        
+          512 ->
+            let salt = map fromIntegral [salt0,salt1,salt2,salt3]
+            in
+            case length nonOptions of
+              0 -> hashInput printHash512 salt
+              _ -> mapM_ (hashFile printHash512 salt) nonOptions
+
+          _   -> error "unavailable algorithm size"
+
 

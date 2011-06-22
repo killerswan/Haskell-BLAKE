@@ -155,6 +155,16 @@ hashFile f salt path =
         f salt path message
 
 
+printHashes 256 salt []    = hashInput printHash256 $ map fromIntegral salt
+printHashes 512 salt []    = hashInput printHash512 $ map fromIntegral salt
+printHashes 256 salt paths = mapM_ (hashFile printHash256 $ map fromIntegral salt) paths
+printHashes 512 salt paths = mapM_ (hashFile printHash512 $ map fromIntegral salt) paths
+printHashes _   _    _     = error "unavailable algorithm size"
+
+
+checkHashes _ _ _ = error "not implemented yet"
+
+
 main = 
     do 
         args <- getArgs
@@ -163,29 +173,18 @@ main =
         opts <- foldl (>>=) (return defaultOpts) actions
         
         let Options { check     = check
-                    , algorithm = algorithm
-                    , salt0      = salt0
+                    , algorithm = algorithmBits
+                    , salt0     = salt0
                     , salt1     = salt1
                     , salt2     = salt2
                     , salt3     = salt3
                     } = opts
 
+        -- are we in check mode?
+        let run = if check 
+                  then checkHashes
+                  else printHashes
 
-        case algorithm of 
-          256 -> 
-            let salt = map fromIntegral [salt0,salt1,salt2,salt3]
-            in
-            case length nonOptions of
-              0 -> hashInput printHash256 salt
-              _ -> mapM_ (hashFile printHash256 salt) nonOptions
-
-          512 ->
-            let salt = map fromIntegral [salt0,salt1,salt2,salt3]
-            in
-            case length nonOptions of
-              0 -> hashInput printHash512 salt
-              _ -> mapM_ (hashFile printHash512 salt) nonOptions
-
-          _   -> error "unavailable algorithm size"
-
+        -- either check or print hashes
+        run algorithmBits [salt0,salt1,salt2,salt3] nonOptions
 

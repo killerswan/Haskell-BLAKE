@@ -165,8 +165,32 @@ printHashes 256 salt paths = mapM_ (hashFile printHash256 $ map fromIntegral sal
 printHashes 512 salt paths = mapM_ (hashFile printHash512 $ map fromIntegral salt) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
+
 checkHashes _ _ _ = error "not implemented yet"
 
+
+checkInput alg salt [] =
+  do
+    ii <- getContents
+    mapM_ (checkHash256 salt) $ lines ii 
+
+
+checkHash256 = checkHash getHash256 64
+
+checkHash512 = checkHash getHash512 128
+
+checkHash getHash hsize salt line = 
+  do
+    let savedHash = take (hsize)     line
+    let path      = drop (hsize + 2) line
+
+    message    <- B.readFile path
+
+    let testedHash = getHash (map fromIntegral salt) message
+
+    if testedHash == savedHash
+    then putStrLn $ path ++ ": OK"
+    else putStrLn $ path ++ ": FAILED"
 
 
 

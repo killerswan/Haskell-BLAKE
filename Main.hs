@@ -129,7 +129,7 @@ hex64 ws = (printf "%016x") =<< ws
 -- print out the BLAKE hash followed by the file name
 printHash getHash salt path message = 
     do
-        hash <- return $ getHash salt message
+        hash <- return $ getHash (map fromIntegral salt) message
         putStrLn $ hash ++ " *" ++ path
 
 -- compute a hash in hex
@@ -159,26 +159,44 @@ hashFile f salt path =
         f salt path message
 
 
-printHashes 256 salt []    = hashInput printHash256 $ map fromIntegral salt
-printHashes 512 salt []    = hashInput printHash512 $ map fromIntegral salt
-printHashes 256 salt paths = mapM_ (hashFile printHash256 $ map fromIntegral salt) paths
-printHashes 512 salt paths = mapM_ (hashFile printHash512 $ map fromIntegral salt) paths
+-- print the hashes of each of a list of files and/or stdin
+printHashes 256 salt []    = hashInput printHash256 salt
+printHashes 512 salt []    = hashInput printHash512 salt
+printHashes 256 salt paths = mapM_ (hashFile printHash256 salt) paths
+printHashes 512 salt paths = mapM_ (hashFile printHash512 salt) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
 
-checkHashes _ _ _ = error "not implemented yet"
 
 
-checkInput alg salt [] =
+-- check the hashes within each of a list of files and/or stdin
+checkHashes 256 salt []    = checkInput checkHash256 salt
+checkHashes 512 salt []    = checkInput checkHash512 salt
+checkHashes 256 salt paths = mapM_ (checkFile checkHash256 salt) paths
+checkHashes 512 salt paths = mapM_ (checkFile checkHash512 salt) paths
+checkHashes _   _    _     = error "unavailable algorithm size"
+
+
+-- check hashes on lines of stdin
+checkInput f salt =
   do
-    ii <- getContents
-    mapM_ (checkHash256 salt) $ lines ii 
+    ll <- getContents
+    mapM_ (f salt) $ lines ll 
 
 
-checkHash256 = checkHash getHash256 64
+-- check hashes on lines of a file
+checkFile f salt path = 
+    if path == "-"
+    then checkInput f salt
+    else
+      do
+        ll <- readFile path
+        mapM_ (f salt) $ lines ll
+         
 
-checkHash512 = checkHash getHash512 128
 
+-- check one hash line (i.e., aas98d4a654...5756 *README.txt)
+-- generic
 checkHash getHash hsize salt line = 
   do
     let savedHash = take (hsize)     line
@@ -191,6 +209,13 @@ checkHash getHash hsize salt line =
     if testedHash == savedHash
     then putStrLn $ path ++ ": OK"
     else putStrLn $ path ++ ": FAILED"
+--
+-- 256
+checkHash256 = checkHash getHash256 64
+--
+-- 512
+checkHash512 = checkHash getHash512 128
+
 
 
 

@@ -127,17 +127,21 @@ hex64 ws = (printf "%016x") =<< ws
 
 
 -- print out the BLAKE hash followed by the file name
--- generic
-printHashX hex blake salt path message = 
+printHash getHash salt path message = 
     do
-        hash <- return $ hex $ blake salt $ B.unpack message
+        hash <- return $ getHash salt message
         putStrLn $ hash ++ " *" ++ path
 
--- 256
-printHash256 = printHashX hex32 blake256
+-- compute a hash in hex
+getHashX hex blake salt message = hex $ blake salt $ B.unpack message
 
--- 512
-printHash512 = printHashX hex64 blake512
+-- specifically, BLAKE-256
+getHash256   = getHashX hex32 blake256
+printHash256 = printHash getHash256
+
+-- specifically, BLAKE-512
+getHash512   = getHashX hex64 blake512
+printHash512 = printHash getHash512
 
 
 hashInput f salt = 
@@ -161,8 +165,9 @@ printHashes 256 salt paths = mapM_ (hashFile printHash256 $ map fromIntegral sal
 printHashes 512 salt paths = mapM_ (hashFile printHash512 $ map fromIntegral salt) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
-
 checkHashes _ _ _ = error "not implemented yet"
+
+
 
 
 main = 

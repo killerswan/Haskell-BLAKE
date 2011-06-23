@@ -101,51 +101,55 @@ printHash512 = printHash getHash512
 
 
 -- print the hashes of each of a list of files and/or stdin
-printHashes 256 salt []    = hashInput (printHash256 salt)
-printHashes 512 salt []    = hashInput (printHash512 salt)
-printHashes 256 salt paths = mapM_ (hashFile (printHash256 salt)) paths
-printHashes 512 salt paths = mapM_ (hashFile (printHash512 salt)) paths
+printHashes 256 salt []    = hashInput $ printHash256 salt "-"
+printHashes 512 salt []    = hashInput $ printHash512 salt "-"
+printHashes 256 salt paths = mapM_ (hashFile $ printHash256 salt) paths
+printHashes 512 salt paths = mapM_ (hashFile $ printHash512 salt) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
 
 hashInput f = 
   do 
-    message <- B.getContents
-    f "-" message
+    msg <- B.getContents
+    f msg
 
 
-hashFile f path =
+hashFile g path =
     if path == "-"
-    then hashInput f 
+    then hashInput $ g path
     else
       do
-        message <- B.readFile path
-        f path message
+        msg <- B.readFile path
+        g path msg
 
 
 -- check the hashes within each of a list of files and/or stdin
-checkHashes 256 salt []    = checkInput (checkHash256 salt)
-checkHashes 512 salt []    = checkInput (checkHash512 salt)
-checkHashes 256 salt paths = mapM_ (checkFile (checkHash256 salt)) paths
-checkHashes 512 salt paths = mapM_ (checkFile (checkHash512 salt)) paths
+checkHashes 256 salt []    = checkInput $ checkHashesInMessage $ checkHash256 salt
+checkHashes 512 salt []    = checkInput $ checkHashesInMessage $ checkHash512 salt
+checkHashes 256 salt paths = mapM_ (checkFile $ checkHashesInMessage $ checkHash256 salt) paths
+checkHashes 512 salt paths = mapM_ (checkFile $ checkHashesInMessage $ checkHash512 salt) paths
 checkHashes _   _    _     = error "unavailable algorithm size"
 
+
+-- check message (file) of hashes
+checkHashesInMessage f message =
+    mapM_ f $ lines message
 
 -- check hashes on lines of stdin
 checkInput f =
   do
-    ll <- getContents
-    mapM_ (f) $ lines ll 
+    msg <- getContents
+    f msg 
 
 
 -- check hashes on lines of a file
-checkFile f path = 
+checkFile g path = 
     if path == "-"
-    then checkInput f 
+    then checkInput $ g
     else
       do
-        ll <- readFile path
-        mapM_ (f ) $ lines ll
+        msg <- readFile path
+        g msg 
          
 
 

@@ -19,20 +19,14 @@ import System.Console.GetOpt
 data Options = Options { help      :: Bool
                        , check     :: Bool
                        , algorithm :: Integer
-                       , salt0     :: Integer 
-                       , salt1     :: Integer 
-                       , salt2     :: Integer 
-                       , salt3     :: Integer 
+                       , salt      :: [Integer] 
                        }
 
 defaultOpts :: Options
 defaultOpts = Options { help = False
                       , check = False
                       , algorithm = 256
-                      , salt0 = 0
-                      , salt1 = 0
-                      , salt2 = 0
-                      , salt3 = 0
+                      , salt = [0,0,0,0]
                       }
 
 options :: [ OptDescr (Options -> IO Options) ]
@@ -47,58 +41,17 @@ options = [ Option "a" ["algorithm"]
 
           , Option "c" ["check"] 
                    (NoArg $ \opt -> return opt { check = True })
-                   "positive integer salt (default: 0)"
+                   "check saved hashes"
 
-{-
           , Option "s" ["salt"] 
                    (ReqArg
-                        (\arg opt -> let s = read arg :: Integer
+                        (\arg opt -> let s = (read ("[" ++ arg ++ "]")) :: [Integer]
                                      in 
-                                     if s >= 0
-                                     then return opt { salt = s }
-                                     else error "please specify a positive salt")
+                                     if (length $ filter (<0) s) > 0 || length s /= 4
+                                     then error "please specify a salt of positive numbers"
+                                     else return opt { salt = s })
                         "SALT")
-                   "positive integer salt (default: 0)"
--}
-          , Option "" ["salt0"] 
-                   (ReqArg
-                        (\arg opt -> let s = read arg :: Integer
-                                     in 
-                                     if s >= 0
-                                     then return opt { salt0 = s }
-                                     else error "please specify a positive salt")
-                        "SALT")
-                   "positive integer salt, word 1/4 (default: 0)"
-
-          , Option "" ["salt1"] 
-                   (ReqArg
-                        (\arg opt -> let s = read arg :: Integer
-                                     in 
-                                     if s >= 0
-                                     then return opt { salt1 = s }
-                                     else error "please specify a positive salt")
-                        "SALT")
-                   "positive integer salt, word 2/4 (default: 0)"
-
-          , Option "" ["salt2"] 
-                   (ReqArg
-                        (\arg opt -> let s = read arg :: Integer
-                                     in 
-                                     if s >= 0
-                                     then return opt { salt2 = s }
-                                     else error "please specify a positive salt")
-                        "SALT")
-                   "positive integer salt, word 3/4 (default: 0)"
-
-          , Option "" ["salt3"] 
-                   (ReqArg
-                        (\arg opt -> let s = read arg :: Integer
-                                     in 
-                                     if s >= 0
-                                     then return opt { salt3 = s }
-                                     else error "please specify a positive salt")
-                        "SALT")
-                   "positive integer salt, word 4/4 (default: 0)"
+                   "positive integer salt, as four words (default: 0,0,0,0)"
 
           , Option "h" ["help"] 
                    (NoArg  $ \_ -> do
@@ -217,21 +170,20 @@ checkHash256 = checkHash getHash256 64
 checkHash512 = checkHash getHash512 128
 
 
-
-
 main = 
     do 
         args <- getArgs
 
+        -- call getOpt
         let (actions, nonOptions, errors) = getOpt RequireOrder options args
+
+        -- process the defaults with those actions
         opts <- foldl (>>=) (return defaultOpts) actions
         
+        -- assign the results
         let Options { check     = check
                     , algorithm = algorithmBits
-                    , salt0     = salt0
-                    , salt1     = salt1
-                    , salt2     = salt2
-                    , salt3     = salt3
+                    , salt      = salt
                     } = opts
 
         -- are we in check mode?
@@ -240,5 +192,5 @@ main =
                   else printHashes
 
         -- either check or print hashes
-        run algorithmBits [salt0,salt1,salt2,salt3] nonOptions
+        run algorithmBits salt nonOptions
 

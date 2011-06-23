@@ -15,6 +15,9 @@ import Char
 import Text.Printf
 import Control.Monad
 import System.Console.GetOpt
+--import Data.Text as T
+--import Data.Text.Encoding as E
+--import Data.ByteString (ByteString)
 
 data Options = Options { help      :: Bool
                        , check     :: Bool
@@ -97,54 +100,52 @@ getHash512   = getHashX hex64 blake512
 printHash512 = printHash getHash512
 
 
-hashInput f salt = 
-  do 
-    message <- B.getContents
-    f salt "-" message
-
-
-hashFile f salt path =
-    if path == "-"
-    then hashInput f salt
-    else
-      do
-        message <- B.readFile path
-        f salt path message
-
-
 -- print the hashes of each of a list of files and/or stdin
-printHashes 256 salt []    = hashInput printHash256 salt
-printHashes 512 salt []    = hashInput printHash512 salt
-printHashes 256 salt paths = mapM_ (hashFile printHash256 salt) paths
-printHashes 512 salt paths = mapM_ (hashFile printHash512 salt) paths
+printHashes 256 salt []    = hashInput (printHash256 salt)
+printHashes 512 salt []    = hashInput (printHash512 salt)
+printHashes 256 salt paths = mapM_ (hashFile (printHash256 salt)) paths
+printHashes 512 salt paths = mapM_ (hashFile (printHash512 salt)) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
 
+hashInput f = 
+  do 
+    message <- B.getContents
+    f "-" message
+
+
+hashFile f path =
+    if path == "-"
+    then hashInput f 
+    else
+      do
+        message <- B.readFile path
+        f path message
 
 
 -- check the hashes within each of a list of files and/or stdin
-checkHashes 256 salt []    = checkInput checkHash256 salt
-checkHashes 512 salt []    = checkInput checkHash512 salt
-checkHashes 256 salt paths = mapM_ (checkFile checkHash256 salt) paths
-checkHashes 512 salt paths = mapM_ (checkFile checkHash512 salt) paths
+checkHashes 256 salt []    = checkInput (checkHash256 salt)
+checkHashes 512 salt []    = checkInput (checkHash512 salt)
+checkHashes 256 salt paths = mapM_ (checkFile (checkHash256 salt)) paths
+checkHashes 512 salt paths = mapM_ (checkFile (checkHash512 salt)) paths
 checkHashes _   _    _     = error "unavailable algorithm size"
 
 
 -- check hashes on lines of stdin
-checkInput f salt =
+checkInput f =
   do
     ll <- getContents
-    mapM_ (f salt) $ lines ll 
+    mapM_ (f) $ lines ll 
 
 
 -- check hashes on lines of a file
-checkFile f salt path = 
+checkFile f path = 
     if path == "-"
-    then checkInput f salt
+    then checkInput f 
     else
       do
         ll <- readFile path
-        mapM_ (f salt) $ lines ll
+        mapM_ (f ) $ lines ll
          
 
 

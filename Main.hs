@@ -118,8 +118,8 @@ printHashes 256 salt paths = let
                                  paths -> mapM_ h paths
 
 printHashes 512 salt paths = let
-                               g = printHash256 salt "-"
-                               h = \path -> (fileF $ printHash256 salt path) path
+                               g = printHash512 salt "-"
+                               h = \path -> (fileF $ printHash512 salt path) path
                              in
                                case paths of
                                  []    -> inF g

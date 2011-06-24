@@ -11,6 +11,15 @@ import Data.List  -- needed for zipWith4
 import Data.Maybe -- needed for isJust, fromJust
 
 
+-- BLAKE-224 initial values
+initialValues224 :: [Word32]
+initialValues224 =
+    [ 0xC1059ED8, 0x367CD507, 
+      0x3070DD17, 0xF70E5939, 
+      0xFFC00B31, 0x68581511, 
+      0x64F98FA7, 0xBEFA4FA4 ]
+
+
 -- BLAKE-256 initial values
 initialValues256 :: [Word32]
 initialValues256 = 
@@ -31,6 +40,15 @@ constants256 =
       0xbe5466cf, 0x34e90c6c,
       0xc0ac29b7, 0xc97c50dd,
       0x3f84d5b5, 0xb5470917 ]
+
+
+-- BLAKE-384 initial values
+initialValues384 :: [Word64]
+initialValues384 =
+    [ 0xCBBB9D5DC1059ED8, 0x629A292A367CD507,
+      0x9159015A3070DD17, 0x152FECD8F70E5939,
+      0x67332667FFC00B31, 0x8EB44A8768581511,
+      0xDB0C2E0D64F98FA7, 0x47B5481DBEFA4FA4 ]
 
 
 -- BLAKE-512 initial values
@@ -181,7 +199,9 @@ blakeRoundX bitshiftKernel messageblock state round =
 -- initial 16 word state for compressing a block
 -- here, my counter 't' contains [high,low] words 
 -- rather than reverse it in `blocks` below, i changed the numbering here
+initialState224 = initialState256
 initialState256 = initialStateX constants256
+initialState384 = initialState512
 initialState512 = initialStateX constants512
 initialStateX constants h s t = 
     h ++ 
@@ -196,7 +216,9 @@ initialStateX constants h s t =
 -- t is a counter       0-1
 -- return h'
 --compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
+compress224 = compress blakeRound256 14 initialState224
 compress256 = compress blakeRound256 14 initialState256
+compress384 = compress blakeRound512 16 initialState384
 compress512 = compress blakeRound512 16 initialState512
 compress roundFunc rounds initialState h m s t =
     let 
@@ -254,13 +276,21 @@ type Counter = [Word32]
 -}
 
 
--- BLAKE-256 padding
+-- BLAKE padding
 -- blocks of twice the hash size, which is 8 words
 -- with a counter per block
 --
 -- 256
+blocks224 :: [Word8] -> [([Word32], [Word32])]
+blocks224 = blocksX 32 0x00
+--
+-- 256
 blocks256 :: [Word8] -> [([Word32], [Word32])]
 blocks256 = blocksX 32 0x01
+--
+-- 384
+blocks384 :: [Word8] -> [([Word64], [Word64])]
+blocks384 = blocksX 64 0x00
 --
 -- 512
 blocks512 :: [Word8] -> [([Word64], [Word64])]
@@ -341,9 +371,11 @@ blake512 :: [Word64] -> [Word8] -> [Word64]
 blake512 = blake compress512 blocks512 initialValues512
 
 blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 a b = []
+blake224 =  (blake compress224 blocks224 initialValues224)
+--blake224 a b =  take 7 (blake compress224 blocks224 initialValues224 a b)
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 a b = []
+blake384 = (blake compress384 blocks384 initialValues384)
+--blake384 = (take 6) . (blake compress384 blocks384 initialValues384)
 
 

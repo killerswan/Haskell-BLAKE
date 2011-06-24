@@ -21,12 +21,19 @@ import qualified Data.Text.Lazy.Encoding as E
 import qualified Data.ByteString as BS
 import Data.Word
 
+
+-- TODO: may need to add error handling 
+--       for excessively long inputs per the BLAKE paper)
+
+
+-- command line options
 data Options = Options { help      :: Bool
                        , check     :: Bool
                        , algorithm :: Integer
                        , salt      :: [Integer] 
                        }
 
+-- command line defaults
 defaultOpts :: Options
 defaultOpts = Options { help = False
                       , check = False
@@ -34,6 +41,9 @@ defaultOpts = Options { help = False
                       , salt = [0,0,0,0]
                       }
 
+-- command line description
+-- this format is kinda bone headed:
+--   [Option short [long] (property setter-function hint) description]
 options :: [ OptDescr (Options -> IO Options) ]
 options = [ Option "a" ["algorithm"] 
                    (ReqArg
@@ -72,11 +82,6 @@ options = [ Option "a" ["algorithm"]
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
-
-
--- TODO: may need to add error handling 
---       for excessively long inputs per the BLAKE paper)
-
 
 
 -- print a list of numbers as a hex string
@@ -175,13 +180,19 @@ main =
     do 
         args <- getArgs
 
-        -- call getOpt
+        -- call getOpt with the option description
+        -- returns
+        --    actions to do
+        --    leftover nonOptions
+        --    errors
         let (actions, nonOptions, errors) = getOpt RequireOrder options args
 
         -- process the defaults with those actions
+        -- returns command line properties
         opts <- foldl (>>=) (return defaultOpts) actions
         
         -- assign the results
+        -- via destructuring assignment
         let Options { check     = check
                     , algorithm = algorithmBits
                     , salt      = salt
@@ -189,8 +200,8 @@ main =
 
         -- are we in check mode?
         let run = if check 
-                  then checkHashes
-                  else printHashes
+                  then checkHashes -- ^ verify hashes listed in given files
+                  else printHashes -- ^ output hashes of given files
 
         -- either check or print hashes
         run algorithmBits salt nonOptions

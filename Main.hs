@@ -7,7 +7,7 @@ module Main (main) where
 
 import SHA3.BLAKE
 import Data.Bits
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy as BSL
 import System
 import List
 import IO
@@ -15,9 +15,11 @@ import Char
 import Text.Printf
 import Control.Monad
 import System.Console.GetOpt
---import Data.Text as T
---import Data.Text.Encoding as E
---import Data.ByteString (ByteString)
+import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text.Lazy.Encoding as E
+import qualified Data.ByteString as BS
+import Data.Word
 
 data Options = Options { help      :: Bool
                        , check     :: Bool
@@ -78,20 +80,21 @@ options = [ Option "a" ["algorithm"]
 
 
 -- print a list of numbers as a hex string
-hex32 ws = (printf "%08x" ) =<< ws
-hex64 ws = (printf "%016x") =<< ws
+hex32 ws = T.pack $ (printf "%08x" ) =<< ws
+hex64 ws = T.pack $ (printf "%016x") =<< ws
 
 
 -- print out the BLAKE hash followed by the file name
 printHash getHash salt path message = 
     do
         hash <- return $ getHash (map fromIntegral salt) message
-        putStrLn $ hash ++ " *" ++ path
+        BSL.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
 
 -- compute a hash in hex
-getHashX hex blake salt message = hex $ blake salt $ B.unpack message
+getHashX hex blake salt message = hex $ blake salt $ BSL.unpack message
 
 -- specifically, BLAKE-256
+getHash256 :: [Word32] -> BSL.ByteString -> T.Text
 getHash256   = getHashX hex32 blake256
 printHash256 = printHash getHash256
 
@@ -101,78 +104,59 @@ printHash512 = printHash getHash512
 
 
 -- print the hashes of each of a list of files and/or stdin
-printHashes 256 salt []    = hashInput $ printHash256 salt "-"
-printHashes 512 salt []    = hashInput $ printHash512 salt "-"
-printHashes 256 salt paths = mapM_ (hashFile $ printHash256 salt) paths
-printHashes 512 salt paths = mapM_ (hashFile $ printHash512 salt) paths
+printHashes 256 salt []    = inF $ printHash256 salt "-"
+printHashes 512 salt []    = inF $ printHash512 salt "-"
+printHashes 256 salt paths = mapM_ (\path -> (fileF $ printHash256 salt path) path) paths
+printHashes 512 salt paths = mapM_ (\path -> (fileF $ printHash512 salt path) path) paths
 printHashes _   _    _     = error "unavailable algorithm size"
 
 
-hashInput f = 
-  do 
-    msg <- B.getContents
-    f msg
+-- call a function on stdin (as a ByteString)
+inF g = BSL.getContents >>= g
 
-
-hashFile g path =
+-- call a function on a file [or stdin, when "-"] (as a ByteString)
+fileF g path =
     if path == "-"
-    then hashInput $ g path
-    else
-      do
-        msg <- B.readFile path
-        g path msg
+    then inF g
+    else BSL.readFile path >>= g
 
 
 -- check the hashes within each of a list of files and/or stdin
-checkHashes 256 salt []    = checkInput $ checkHashesInMessage $ checkHash256 salt
-checkHashes 512 salt []    = checkInput $ checkHashesInMessage $ checkHash512 salt
-checkHashes 256 salt paths = mapM_ (checkFile $ checkHashesInMessage $ checkHash256 salt) paths
-checkHashes 512 salt paths = mapM_ (checkFile $ checkHashesInMessage $ checkHash512 salt) paths
+checkHashes 256 salt paths = let 
+                               g = (checkHashesInMessage getHash256  64 salt) . T.lines . E.decodeUtf8
+                             in 
+                               case paths of
+                                 []    -> inF g
+                                 paths -> mapM_ (fileF g) paths
+
+checkHashes 512 salt paths = let 
+                               g = (checkHashesInMessage getHash512 128 salt) . T.lines . E.decodeUtf8
+                             in 
+                               case paths of
+                                 []    -> inF g
+                                 paths -> mapM_ (fileF g) paths
+
 checkHashes _   _    _     = error "unavailable algorithm size"
 
 
 -- check message (file) of hashes
-checkHashesInMessage f message =
-    mapM_ f $ lines message
+checkHashesInMessage f hsize salt = mapM_ (checkHash f hsize salt) 
 
--- check hashes on lines of stdin
-checkInput f =
-  do
-    msg <- getContents
-    f msg 
-
-
--- check hashes on lines of a file
-checkFile g path = 
-    if path == "-"
-    then checkInput $ g
-    else
-      do
-        msg <- readFile path
-        g msg 
-         
 
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
 -- generic
 checkHash getHash hsize salt line = 
   do
-    let savedHash = take (hsize)     line
-    let path      = drop (hsize + 2) line
+    let [savedHash, path] = T.splitOn (T.pack " *") line
 
-    message    <- B.readFile path
+    message <- BSL.readFile (T.unpack path)
 
-    let testedHash = getHash (map fromIntegral salt) message
+    let testedHash = getHash (map fromIntegral salt) $ message
 
     if testedHash == savedHash
-    then putStrLn $ path ++ ": OK"
-    else putStrLn $ path ++ ": FAILED"
---
--- 256
-checkHash256 = checkHash getHash256 64
---
--- 512
-checkHash512 = checkHash getHash512 128
+    then BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": OK")
+    else BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": FAILED")
 
 
 main = 
@@ -198,4 +182,5 @@ main =
 
         -- either check or print hashes
         run algorithmBits salt nonOptions
+
 

@@ -104,10 +104,22 @@ printHash512 = printHash getHash512
 
 
 -- print the hashes of each of a list of files and/or stdin
-printHashes 256 salt []    = inF $ printHash256 salt "-"
-printHashes 512 salt []    = inF $ printHash512 salt "-"
-printHashes 256 salt paths = mapM_ (\path -> (fileF $ printHash256 salt path) path) paths
-printHashes 512 salt paths = mapM_ (\path -> (fileF $ printHash512 salt path) path) paths
+printHashes 256 salt paths = let
+                               g = printHash256 salt "-"
+                               h = \path -> (fileF $ printHash256 salt path) path
+                             in
+                               case paths of
+                                 []    -> inF g
+                                 paths -> mapM_ h paths
+
+printHashes 512 salt paths = let
+                               g = printHash256 salt "-"
+                               h = \path -> (fileF $ printHash256 salt path) path
+                             in
+                               case paths of
+                                 []    -> inF g
+                                 paths -> mapM_ h paths
+
 printHashes _   _    _     = error "unavailable algorithm size"
 
 
@@ -122,16 +134,16 @@ fileF g path =
 
 
 -- check the hashes within each of a list of files and/or stdin
-checkHashes 256 salt paths = let 
+checkHashes 256 salt paths = let
                                g = (checkHashesInMessage getHash256  64 salt) . T.lines . E.decodeUtf8
-                             in 
+                             in
                                case paths of
                                  []    -> inF g
                                  paths -> mapM_ (fileF g) paths
 
-checkHashes 512 salt paths = let 
+checkHashes 512 salt paths = let
                                g = (checkHashesInMessage getHash512 128 salt) . T.lines . E.decodeUtf8
-                             in 
+                             in
                                case paths of
                                  []    -> inF g
                                  paths -> mapM_ (fileF g) paths

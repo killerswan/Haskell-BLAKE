@@ -359,9 +359,12 @@ blocksX wordSize paddingTerminator message =
 
 --blake :: Int -> Salt -> [Word8] -> Hash
 blake compress blocks initialValues salt message =
-    let compress' h (m,t) = compress h m salt t
+    let
+      compress' h (m,t) = compress h m salt t
     in
-    foldl' compress' initialValues $ blocks message
+      if length salt /= 4
+      then error "blake: your salt is not four words"
+      else foldl' compress' initialValues $ blocks message
      
 
 blake256 :: [Word32] -> [Word8] -> [Word32]
@@ -371,9 +374,9 @@ blake512 :: [Word64] -> [Word8] -> [Word64]
 blake512 = blake compress512 blocks512 initialValues512
 
 blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 a b = (take 7) $ (blake compress224 blocks224 initialValues224) a b
+blake224 a b = take 7 $ blake compress224 blocks224 initialValues224 a b
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 a b = (take 6) $ (blake compress384 blocks384 initialValues384) a b
+blake384 a b = take 6 $ blake compress384 blocks384 initialValues384 a b
 
 

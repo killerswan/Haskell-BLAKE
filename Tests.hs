@@ -5,7 +5,6 @@
 
 import Test.HUnit
 import SHA3.BLAKE
-import qualified Data.ByteString.Lazy as B
 
 
 test_blake256 = 
@@ -42,7 +41,7 @@ test_blake384 =
         assertEqual "BLAKE-384 of 144 by '0x00'"
             [0x0B9845DD429566CD, 0xAB772BA195D271EF, 0xFE2D0211F16991D7, 
              0x66BA749447C5CDE5, 0x69780B2DAA66C4B2, 0x24A2EC2E5D09174C]
-            (blake512 [0,0,0,0] $ take 144 $ repeat 0) 
+            (blake384 [0,0,0,0] $ take 144 $ repeat 0) 
 
 
 test_blake224 = 
@@ -53,7 +52,7 @@ test_blake224 =
 
         assertEqual "BLAKE-224 of 72 by '0x00'" 
             [0xF5AA00DD, 0x1CB847E3, 0x140372AF, 0x7B5C46B4, 0x888D82C8, 0xC0A91791, 0x3CFB5D04]
-            (blake256 [0,0,0,0] $ take 72 $ repeat 0)
+            (blake224 [0,0,0,0] $ take 72 $ repeat 0)
 
 
 tests = TestList [ "BLAKE-256"            ~: test_blake256

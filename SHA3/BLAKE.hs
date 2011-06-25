@@ -371,11 +371,9 @@ blake512 :: [Word64] -> [Word8] -> [Word64]
 blake512 = blake compress512 blocks512 initialValues512
 
 blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 =  (blake compress224 blocks224 initialValues224)
---blake224 a b =  take 7 (blake compress224 blocks224 initialValues224 a b)
+blake224 a b = (take 7) $ (blake compress224 blocks224 initialValues224) a b
 
 blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 = (blake compress384 blocks384 initialValues384)
---blake384 = (take 6) . (blake compress384 blocks384 initialValues384)
+blake384 a b = (take 6) $ (blake compress384 blocks384 initialValues384) a b
 
 

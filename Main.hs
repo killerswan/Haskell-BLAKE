@@ -16,6 +16,7 @@ import qualified Data.Text.Lazy.Encoding as E
 import Data.Word
 
 
+-- TODO: my function names often suck
 -- TODO: may need to add error handling for excessively long inputs per the BLAKE paper)
 
 
@@ -101,25 +102,6 @@ getHash512   = getHashX hex64 blake512
 printHash512 = printHash getHash512
 
 
--- print the hashes of each of a list of files and/or stdin
-printHashes 256 salt paths = let
-                               g = printHash256 salt "-"
-                               h = \path -> (fileF $ printHash256 salt path) path
-                             in
-                               case paths of
-                                 [] -> inF g
-                                 _  -> mapM_ h paths
-
-printHashes 512 salt paths = let
-                               g = printHash512 salt "-"
-                               h = \path -> (fileF $ printHash512 salt path) path
-                             in
-                               case paths of
-                                 [] -> inF g
-                                 _  -> mapM_ h paths
-
-printHashes _   _    _     = error "unavailable algorithm size"
-
 
 -- call a function on stdin (as a ByteString)
 inF g = BSL.getContents >>= g
@@ -131,22 +113,34 @@ fileF g path =
     else BSL.readFile path >>= g
 
 
+-- print the hashes of each of a list of files and/or stdin
+printHashesX printHash salt paths = 
+    let
+        g = printHash salt "-"
+        h = \path -> (fileF $ printHash salt path) path
+    in
+        case paths of
+            [] -> inF g
+            _  -> mapM_ h paths
+
+
+printHashes 256 = printHashesX printHash256
+printHashes 512 = printHashesX printHash512
+printHashes _   = error "unavailable algorithm size"
+
+
 -- check the hashes within each of a list of files and/or stdin
-checkHashes 256 salt paths = let
-                               g = (checkHashesInMessage getHash256 salt) . T.lines . E.decodeUtf8
-                             in
-                               case paths of
-                                 [] -> inF g
-                                 _  -> mapM_ (fileF g) paths
+checkHashesX checkHashes salt paths = 
+    let
+      g = (checkHashes salt) . T.lines . E.decodeUtf8
+    in
+      case paths of
+        [] -> inF g
+        _  -> mapM_ (fileF g) paths
 
-checkHashes 512 salt paths = let
-                               g = (checkHashesInMessage getHash512 salt) . T.lines . E.decodeUtf8
-                             in
-                               case paths of
-                                 [] -> inF g
-                                 _  -> mapM_ (fileF g) paths
-
-checkHashes _   _    _     = error "unavailable algorithm size"
+checkHashes 256 = checkHashesX (checkHashesInMessage getHash256)
+checkHashes 512 = checkHashesX (checkHashesInMessage getHash512)
+checkHashes _   = error "unavailable algorithm size"
 
 
 -- check message (file) of hashes

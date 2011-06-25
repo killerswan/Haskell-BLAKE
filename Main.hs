@@ -42,9 +42,10 @@ options :: [ OptDescr (Options -> IO Options) ]
 options = [ Option "a" ["algorithm"] 
                    (ReqArg
                         (\arg opt -> let alg = read arg :: Integer
-                                     in case alg of 
-                                            x | x == 256 || x == 512 -> return opt { algorithm = alg }
-                                            _ -> error "please choose a working algorithm size")
+                                     in
+                                       if elem alg [256,512,224,384]
+                                       then return opt { algorithm = alg }
+                                       else error "please choose a working algorithm size")
                         "BITS")
                    "256, 512, 224, 384 (default: 256)"
 
@@ -97,9 +98,17 @@ getHash256 :: [Word32] -> BSL.ByteString -> T.Text
 getHash256   = getHashX hex32 blake256
 printHash256 = printHash getHash256
 
+getHash224 :: [Word32] -> BSL.ByteString -> T.Text
+getHash224   = getHashX hex32 blake224
+printHash224 = printHash getHash224
+
 -- specifically, BLAKE-512
 getHash512   = getHashX hex64 blake512
 printHash512 = printHash getHash512
+
+-- specifically, BLAKE-512
+getHash384   = getHashX hex64 blake384
+printHash384 = printHash getHash384
 
 
 
@@ -126,6 +135,8 @@ printHashesX printHash paths =
 
 printHashes 256 salt = printHashesX $ printHash256 salt
 printHashes 512 salt = printHashesX $ printHash512 salt
+printHashes 224 salt = printHashesX $ printHash224 salt
+printHashes 384 salt = printHashesX $ printHash384 salt
 printHashes _   _    = error "unavailable algorithm size"
 
 
@@ -140,6 +151,8 @@ checkHashesX checkHashes paths =
 
 checkHashes 256 salt = checkHashesX $ checkHashesInMessage getHash256 salt
 checkHashes 512 salt = checkHashesX $ checkHashesInMessage getHash512 salt
+checkHashes 224 salt = checkHashesX $ checkHashesInMessage getHash224 salt
+checkHashes 384 salt = checkHashesX $ checkHashesInMessage getHash384 salt
 checkHashes _   _    = error "unavailable algorithm size"
 
 
@@ -172,7 +185,7 @@ main =
         --    actions to do
         --    leftover nonOptions
         --    errors (here, simply _)
-        let (actions, nonOptions, _) = getOpt RequireOrder options args
+        let (actions, nonOptions, _) = getOpt Permute options args
 
         -- process the defaults with those actions
         -- returns command line properties

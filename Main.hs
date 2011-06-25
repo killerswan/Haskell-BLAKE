@@ -114,33 +114,33 @@ fileF g path =
 
 
 -- print the hashes of each of a list of files and/or stdin
-printHashesX printHash salt paths = 
+printHashesX printHash paths = 
     let
-        g = printHash salt "-"
-        h = \path -> (fileF $ printHash salt path) path
+        g = printHash "-"
+        h = \path -> (fileF $ printHash path) path
     in
         case paths of
             [] -> inF g
             _  -> mapM_ h paths
 
 
-printHashes 256 = printHashesX printHash256
-printHashes 512 = printHashesX printHash512
-printHashes _   = error "unavailable algorithm size"
+printHashes 256 salt = printHashesX $ printHash256 salt
+printHashes 512 salt = printHashesX $ printHash512 salt
+printHashes _   _    = error "unavailable algorithm size"
 
 
 -- check the hashes within each of a list of files and/or stdin
-checkHashesX checkHashes salt paths = 
+checkHashesX checkHashes paths = 
     let
-      g = (checkHashes salt) . T.lines . E.decodeUtf8
+      g = checkHashes . T.lines . E.decodeUtf8
     in
       case paths of
         [] -> inF g
         _  -> mapM_ (fileF g) paths
 
-checkHashes 256 = checkHashesX (checkHashesInMessage getHash256)
-checkHashes 512 = checkHashesX (checkHashesInMessage getHash512)
-checkHashes _   = error "unavailable algorithm size"
+checkHashes 256 salt = checkHashesX $ checkHashesInMessage getHash256 salt
+checkHashes 512 salt = checkHashesX $ checkHashesInMessage getHash512 salt
+checkHashes _   _    = error "unavailable algorithm size"
 
 
 -- check message (file) of hashes

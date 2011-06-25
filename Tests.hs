@@ -7,6 +7,7 @@ import Test.HUnit
 import SHA3.BLAKE
 
 
+test_blake256 :: Test 
 test_blake256 = 
     TestCase $ do
         assertEqual "BLAKE-256 of '0x00'" 
@@ -18,6 +19,7 @@ test_blake256 =
             (blake256 [0,0,0,0] $ take 72 $ repeat 0) 
 
 
+test_blake512 :: Test 
 test_blake512 = 
     TestCase $ do
         assertEqual "BLAKE-512 of '0x00'"
@@ -31,6 +33,7 @@ test_blake512 =
             (blake512 [0,0,0,0] $ take 144 $ repeat 0) 
 
 
+test_blake384 :: Test 
 test_blake384 = 
     TestCase $ do
         assertEqual "BLAKE-384 of '0x00'"
@@ -44,6 +47,7 @@ test_blake384 =
             (blake384 [0,0,0,0] $ take 144 $ repeat 0) 
 
 
+test_blake224 :: Test 
 test_blake224 = 
     TestCase $ do
         assertEqual "BLAKE-224 of '0x00'"
@@ -55,6 +59,7 @@ test_blake224 =
             (blake224 [0,0,0,0] $ take 72 $ repeat 0)
 
 
+tests :: Test
 tests = TestList [ "BLAKE-256"            ~: test_blake256
                  , "BLAKE-512"            ~: test_blake512
                  , "BLAKE-224"            ~: test_blake224
@@ -62,6 +67,7 @@ tests = TestList [ "BLAKE-256"            ~: test_blake256
                  ]
 
 
-main = runTestTT tests
+main :: IO ()
+main = runTestTT tests >>= putStrLn . show  -- TODO: what output does cabal need?
 
 

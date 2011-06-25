@@ -6,39 +6,32 @@
 module Main (main) where
 
 import SHA3.BLAKE
-import Data.Bits
 import qualified Data.ByteString.Lazy as BSL
 import System
-import List
 import IO
-import Char
 import Text.Printf
-import Control.Monad
 import System.Console.GetOpt
 import qualified Data.Text.Lazy as T
-import qualified Data.Text.Lazy.IO as TIO
 import qualified Data.Text.Lazy.Encoding as E
-import qualified Data.ByteString as BS
 import Data.Word
 
 
--- TODO: may need to add error handling 
---       for excessively long inputs per the BLAKE paper)
+-- TODO: may need to add error handling for excessively long inputs per the BLAKE paper)
 
 
 -- command line options
 data Options = Options { help      :: Bool
-                       , check     :: Bool
+                       , check_     :: Bool
                        , algorithm :: Integer
-                       , salt      :: [Integer] 
+                       , salt_      :: [Integer] 
                        }
 
 -- command line defaults
 defaultOpts :: Options
 defaultOpts = Options { help = False
-                      , check = False
+                      , check_ = False
                       , algorithm = 256
-                      , salt = [0,0,0,0]
+                      , salt_ = [0,0,0,0]
                       }
 
 -- command line description
@@ -50,12 +43,12 @@ options = [ Option "a" ["algorithm"]
                         (\arg opt -> let alg = read arg :: Integer
                                      in case alg of 
                                             x | x == 256 || x == 512 -> return opt { algorithm = alg }
-                                            otherwise -> error "please choose a working algorithm size")
+                                            _ -> error "please choose a working algorithm size")
                         "BITS")
                    "256, 512, 224, 384 (default: 256)"
 
           , Option "c" ["check"] 
-                   (NoArg $ \opt -> return opt { check = True })
+                   (NoArg $ \opt -> return opt { check_ = True })
                    "check saved hashes"
 
           , Option "s" ["salt"] 
@@ -64,7 +57,7 @@ options = [ Option "a" ["algorithm"]
                                      in 
                                      if (length $ filter (<0) s) > 0 || length s /= 4
                                      then error "please specify a salt of positive numbers"
-                                     else return opt { salt = s })
+                                     else return opt { salt_ = s })
                         "SALT")
                    "positive integer salt, as four words (default: 0,0,0,0)"
 
@@ -114,16 +107,16 @@ printHashes 256 salt paths = let
                                h = \path -> (fileF $ printHash256 salt path) path
                              in
                                case paths of
-                                 []    -> inF g
-                                 paths -> mapM_ h paths
+                                 [] -> inF g
+                                 _  -> mapM_ h paths
 
 printHashes 512 salt paths = let
                                g = printHash512 salt "-"
                                h = \path -> (fileF $ printHash512 salt path) path
                              in
                                case paths of
-                                 []    -> inF g
-                                 paths -> mapM_ h paths
+                                 [] -> inF g
+                                 _  -> mapM_ h paths
 
 printHashes _   _    _     = error "unavailable algorithm size"
 
@@ -140,30 +133,30 @@ fileF g path =
 
 -- check the hashes within each of a list of files and/or stdin
 checkHashes 256 salt paths = let
-                               g = (checkHashesInMessage getHash256  64 salt) . T.lines . E.decodeUtf8
+                               g = (checkHashesInMessage getHash256 salt) . T.lines . E.decodeUtf8
                              in
                                case paths of
-                                 []    -> inF g
-                                 paths -> mapM_ (fileF g) paths
+                                 [] -> inF g
+                                 _  -> mapM_ (fileF g) paths
 
 checkHashes 512 salt paths = let
-                               g = (checkHashesInMessage getHash512 128 salt) . T.lines . E.decodeUtf8
+                               g = (checkHashesInMessage getHash512 salt) . T.lines . E.decodeUtf8
                              in
                                case paths of
-                                 []    -> inF g
-                                 paths -> mapM_ (fileF g) paths
+                                 [] -> inF g
+                                 _  -> mapM_ (fileF g) paths
 
 checkHashes _   _    _     = error "unavailable algorithm size"
 
 
 -- check message (file) of hashes
-checkHashesInMessage f hsize salt = mapM_ (checkHash f hsize salt) 
+checkHashesInMessage f salt = mapM_ (checkHash f salt) 
 
 
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
 -- generic
-checkHash getHash hsize salt line = 
+checkHash getHash salt line = 
   do
     let [savedHash, path] = T.splitOn (T.pack " *") line
 
@@ -184,8 +177,8 @@ main =
         -- returns
         --    actions to do
         --    leftover nonOptions
-        --    errors
-        let (actions, nonOptions, errors) = getOpt RequireOrder options args
+        --    errors (here, simply _)
+        let (actions, nonOptions, _) = getOpt RequireOrder options args
 
         -- process the defaults with those actions
         -- returns command line properties
@@ -193,9 +186,9 @@ main =
         
         -- assign the results
         -- via destructuring assignment
-        let Options { check     = check
+        let Options { check_     = check
                     , algorithm = algorithmBits
-                    , salt      = salt
+                    , salt_      = salt
                     } = opts
 
         -- are we in check mode?

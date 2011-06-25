@@ -8,7 +8,6 @@ module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
 import Data.Bits
 import Data.Word
 import Data.List  -- needed for zipWith4
-import Data.Maybe -- needed for isJust, fromJust
 
 
 -- BLAKE-224 initial values
@@ -93,27 +92,27 @@ sigmaTable =
 -- perform a given Gi within the round function
 --
 -- generic bit shifting
-bitshiftX :: Bits a => [a] -> [Int] -> [a] -> [a] -> Int -> (Int, [Int]) -> [a]
-bitshiftX constants [r0,r1,r2,r3] state messageblock round (ii, cells) = 
+bitshiftX :: Bits a => [a] -> (Int,Int,Int,Int) -> [a] -> [a] -> Int -> (Int, [Int]) -> [a]
+bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) = 
                 let 
                     -- cells to handle
                     [a,b,c,d] = map (state !!) cells
                 
                     -- get sigma
-                    sigma n = sigmaTable !! (round `mod` 10) !! n
+                    sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
                     messageword n = messageblock !! sigma n
                     constant    n = constants !! sigma n
             
-                    -- compute the round
+                    -- compute the rnd
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
-                    d'  = (d `xor` a') `rotate` r0
+                    d'  = (d `xor` a') `rotate` rot0
                     c'  = c + d' 
-                    b'  = (b `xor` c') `rotate` r1
+                    b'  = (b `xor` c') `rotate` rot1
                     a'' = a' + b' + (messageword (2*ii + 1) `xor` constant (2*ii))
-                    d'' = (d' `xor` a'') `rotate` r2
+                    d'' = (d' `xor` a'') `rotate` rot2
                     c'' = c' + d'' 
-                    b'' = (b' `xor` c'') `rotate` r3
+                    b'' = (b' `xor` c'') `rotate` rot3
                 in
 
                 -- out
@@ -121,11 +120,11 @@ bitshiftX constants [r0,r1,r2,r3] state messageblock round (ii, cells) =
 --
 -- BLAKE-256 bit shifting
 bitshift256 :: [Word32] -> [Word32] -> Int -> (Int, [Int]) -> [Word32]
-bitshift256 = bitshiftX constants256 [-16, -12,  -8,  -7]
+bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 --
 -- BLAKE-512 bit shifting
 bitshift512 :: [Word64] -> [Word64] -> Int -> (Int, [Int]) -> [Word64]
-bitshift512 = bitshiftX constants512 [-32, -25, -16, -11]
+bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
 -- BLAKE-256 round function
@@ -134,32 +133,28 @@ blakeRound256 = blakeRoundX bitshift256
 -- BLAKE-512 round function
 blakeRound512 = blakeRoundX bitshift512
 
-
 -- generic round function
 -- apply multiple G computations for a single round
 --
 -- This is uglier than the fold I had before,
 -- but this can be parallelized a teeny bit...
-blakeRoundX bitshiftKernel messageblock state round = 
+blakeRoundX bitshiftKernel messageblock state rnd = 
 
         let 
             -- perform one G
-            g state = bitshiftKernel state messageblock round
+            g state' = bitshiftKernel state' messageblock rnd
 
 
             -- rotate a 2d list
-            rotate4 m = 
-                map (!! 0) m :
-                map (!! 1) m : 
-                map (!! 2) m : 
-                map (!! 3) m : []
+            rotate4 m = map rot [0,1,2,3]
+                         where rot n = map (!! n) m
 
 
             -- apply G to columns
             -- then rotate result back into order
-            applyColumns state = 
+            applyColumns state' = 
                 let 
-                    cols = map (g state)
+                    cols = map (g state')
                                 -- i, cells for each Gi
                                 [ (0, [0,4,8,12]),
                                   (1, [1,5,9,13]), 
@@ -171,9 +166,9 @@ blakeRoundX bitshiftKernel messageblock state round =
 
             -- apply G to diagonals
             -- then rotate result back into order
-            applyDiagonals state = 
+            applyDiagonals state' = 
                 let 
-                    diags = map (g state)
+                    diags = map (g state')
                                 -- i, cells for each Gi
                                 [ (4, [0,5,10,15]),
                                   (5, [1,6,11,12]), 
@@ -235,7 +230,7 @@ compress roundFunc rounds initialState h m s t =
 -- group bytes into larger words
 -- should be built-in?
 from8toN :: Bits a => Int -> [Word8] -> [a]
-from8toN size words = 
+from8toN size mydata = 
     let 
         octets = size `div` 8
 
@@ -248,11 +243,11 @@ from8toN size words =
 
         -- make list of words
         loop acc []     = acc
-        loop acc words = loop (acc ++ [getWord (take octets words)]) (drop octets words)
+        loop acc mydata' = loop (acc ++ [getWord (take octets mydata')]) (drop octets mydata')
     in
 
     -- fold into words
-    loop [] words
+    loop [] mydata
 
 
 {-
@@ -297,7 +292,7 @@ blocks512 :: [Word8] -> [([Word64], [Word64])]
 blocks512 = blocksX 64 0x01
 --
 -- generic
-blocksX wordSize paddingTerminator message = 
+blocksX wordSize paddingTerminator message' = 
 
     let 
         loop :: (Bits a, Integral a, Num a) => Integer -> [Word8] -> [( [a], [a] )]
@@ -332,35 +327,31 @@ blocksX wordSize paddingTerminator message =
                             zerobytes = (zerobits - 7 - 7) `div` 8
                         in 
                         case zerobits of 
-                                -- as a practical matter, the adjustment must be one byte or more
-                                -- though I'm not sure that this is conformant
-                                z | (z + 2) `mod` 8 /= 0 -> error "padding needed is wrong: not 0 `mod` 8"
-                                -- one byte
-                                z | z == 6 -> [0x80 + paddingTerminator]
-                                -- more bytes
-                                z | z > 6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator]
+                            z | z == 6 -> [0x80 + paddingTerminator] -- ^ one byte
+                            z | z >  6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
+                            _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
                     final = from8toN wordSize (next ++ simplePadding) ++ splitCounter
                 in
             
                 case length final of
                     -- each message block is padded to 16 words
-                    16        -> [( final, splitCounter )]
-                    32        -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
-                    otherwise -> error "we have created a monster! padding --> nonsense"
+                    16 -> [( final, splitCounter )]
+                    32 -> [( take 16 final, splitCounter ), ( drop 16 final, [0,0] )]
+                    _  -> error "we have created a monster! padding --> nonsense"
             
             else
                 -- this is an ordinary message block, so recurse
                 ( from8toN wordSize next, splitCounter ) : (loop counter' (drop blockBytes message))
 
     in
-    loop 0 message
+    loop 0 message'
         
 
 --blake :: Int -> Salt -> [Word8] -> Hash
-blake compress blocks initialValues salt message =
+blake compressF blocks initialValues salt message =
     let
-      compress' h (m,t) = compress h m salt t
+      compress' h (m,t) = compressF h m salt t
     in
       if length salt /= 4
       then error "blake: your salt is not four words"

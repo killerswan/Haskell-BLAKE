@@ -152,6 +152,7 @@ blakeRoundX bitshiftKernel messageblock state rnd =
 
             -- apply G to columns
             -- then rotate result back into order
+            -- TODO: parallel?
             applyColumns state' = 
                 let 
                     cols = map (g state')
@@ -166,6 +167,7 @@ blakeRoundX bitshiftKernel messageblock state rnd =
 
             -- apply G to diagonals
             -- then rotate result back into order
+            -- TODO: parallel?
             applyDiagonals state' = 
                 let 
                     diags = map (g state')
@@ -179,13 +181,13 @@ blakeRoundX bitshiftKernel messageblock state rnd =
 
                     shiftRowRight n row = drop j row ++ take j row
                                             where j = length row - n
+
+                    shiftRows cols' = map sh [0,1,2,3]
+                                       where sh n = shiftRowRight n (cols' !! n)
                 in
 
                 -- clunky: TODO
-                concat [ shiftRowRight 0 (cols !! 0),
-                         shiftRowRight 1 (cols !! 1),
-                         shiftRowRight 2 (cols !! 2),
-                         shiftRowRight 3 (cols !! 3)  ]
+                concat $ shiftRows cols
         in
 
         applyDiagonals $ applyColumns state

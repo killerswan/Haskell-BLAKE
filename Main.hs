@@ -102,17 +102,23 @@ fileMap :: ( BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
 fileMap f paths = fileMapWithPath (\_ -> f) paths
 
 
--- compute a hash in hex
-getHashX hex blake salt message = hex $ blake salt $ BSL.unpack message
+-- convert a digest into text
+textDigest :: PrintfArg a => Int -> [a] -> T.Text
+textDigest wordsize digest = 
+    let
+        fmt = case wordsize of
+                32 ->  "%08x"
+                64 -> "%016x"
+                _  -> error "textDigest: size makes no sense"
+    in
+        T.pack $ (printf fmt) =<< digest
 
-getHash256   = getHashX hex32 blake256
-getHash224   = getHashX hex32 blake224
-getHash512   = getHashX hex64 blake512
-getHash384   = getHashX hex64 blake384
 
--- print a list of numbers as a hex string
-hex32 ws = T.pack $ (printf "%08x" ) =<< ws
-hex64 ws = T.pack $ (printf "%016x") =<< ws
+-- compute a hash, return text
+getHash256 salt message = textDigest 32 $ blake256 salt $ BSL.unpack message
+getHash224 salt message = textDigest 32 $ blake224 salt $ BSL.unpack message
+getHash512 salt message = textDigest 64 $ blake512 salt $ BSL.unpack message
+getHash384 salt message = textDigest 64 $ blake384 salt $ BSL.unpack message
 
 
 -- print out the BLAKE hash followed by the file name
@@ -131,15 +137,18 @@ checkHash getHash salt line =
 
     let testedHash = getHash (map fromIntegral salt) $ message
 
-    if testedHash == savedHash
-    then BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": OK")
-    else BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": FAILED")
+    let status = if testedHash == savedHash
+                 then "OK"
+                 else "FAILED"
+
+    BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack $ ": " ++ status)
 
 
 -- check message (file) of hashes
 checkHashesInMessage f salt = mapM_ (checkHash f salt) 
 
 
+-- print hashes of given files
 printHashes alg salt paths =
     let
         printHash' =
@@ -153,6 +162,7 @@ printHashes alg salt paths =
         fileMapWithPath (printHash' salt) paths
 
 
+-- check hashes within given files
 checkHashes alg salt paths =
     let
         checkHash' =

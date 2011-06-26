@@ -94,21 +94,13 @@ printHash getHash salt path message =
 getHashX hex blake salt message = hex $ blake salt $ BSL.unpack message
 
 -- specifically, BLAKE-256
-getHash256 :: [Word32] -> BSL.ByteString -> T.Text
 getHash256   = getHashX hex32 blake256
-printHash256 = printHash getHash256
 
-getHash224 :: [Word32] -> BSL.ByteString -> T.Text
 getHash224   = getHashX hex32 blake224
-printHash224 = printHash getHash224
 
--- specifically, BLAKE-512
 getHash512   = getHashX hex64 blake512
-printHash512 = printHash getHash512
 
--- specifically, BLAKE-512
 getHash384   = getHashX hex64 blake384
-printHash384 = printHash getHash384
 
 
 
@@ -146,24 +138,28 @@ fileMapWithPath f paths =
             _  -> mapM_ fileF paths
 
 
-printHashes alg salt paths = let printHash' = case alg of 
-                                                256 -> printHash256
-                                                224 -> printHash224
-                                                512 -> printHash512
-                                                384 -> printHash384
-                                                _   -> error "unavailable algorithm size"
-                            in
-                                fileMapWithPath (printHash' salt) paths
+printHashes alg salt paths =
+    let
+        printHash' =
+            case alg of 
+                256 -> printHash getHash256
+                224 -> printHash getHash224
+                512 -> printHash getHash512
+                384 -> printHash getHash384
+                _   -> error "unavailable algorithm size"
+    in
+        fileMapWithPath (printHash' salt) paths
 
 
 checkHashes alg salt paths =
     let
-        checkHash' = case alg of
-                         256 -> checkHashesInMessage getHash256
-                         224 -> checkHashesInMessage getHash224
-                         512 -> checkHashesInMessage getHash512
-                         384 -> checkHashesInMessage getHash384
-                         _   -> error "unavailable algorithm size"
+        checkHash' =
+            case alg of
+                256 -> checkHashesInMessage getHash256
+                224 -> checkHashesInMessage getHash224
+                512 -> checkHashesInMessage getHash512
+                384 -> checkHashesInMessage getHash384
+                _   -> error "unavailable algorithm size"
     in
         fileMap ((checkHash' salt) . T.lines . E.decodeUtf8) paths
 
@@ -172,9 +168,7 @@ checkHashes alg salt paths =
 checkHashesInMessage f salt = mapM_ (checkHash f salt) 
 
 
-
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
--- generic
 checkHash getHash salt line = 
   do
     let [savedHash, path] = T.splitOn (T.pack " *") line

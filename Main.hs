@@ -79,47 +79,6 @@ options = [ Option "a" ["algorithm"]
           ]
 
 
--- print a list of numbers as a hex string
-hex32 ws = T.pack $ (printf "%08x" ) =<< ws
-hex64 ws = T.pack $ (printf "%016x") =<< ws
-
-
--- print out the BLAKE hash followed by the file name
-printHash getHash salt path message = 
-    do
-        hash <- return $ getHash (map fromIntegral salt) message
-        BSL.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
-
--- compute a hash in hex
-getHashX hex blake salt message = hex $ blake salt $ BSL.unpack message
-
--- specifically, BLAKE-256
-getHash256   = getHashX hex32 blake256
-
-getHash224   = getHashX hex32 blake224
-
-getHash512   = getHashX hex64 blake512
-
-getHash384   = getHashX hex64 blake384
-
-
-
--- call a function on stdin (as a ByteString)
-inF g = BSL.getContents >>= g
-
-
--- call a function on a file [or stdin, when "-"] (as a ByteString)
-fileF g path =
-    if path == "-"
-    then inF g
-    else BSL.readFile path >>= g
-
-
--- apply a function to a list of files and/or stdin
-fileMap :: ( BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
-fileMap f paths = fileMapWithPath (\_ -> f) paths
-
-
 -- apply a function (which uses the path) to a list of files and/or stdin
 fileMapWithPath :: ( FilePath -> BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
 fileMapWithPath f paths = 
@@ -136,6 +95,49 @@ fileMapWithPath f paths =
         case paths of
             [] -> stdinF
             _  -> mapM_ fileF paths
+
+
+-- apply a function to a list of files and/or stdin
+fileMap :: ( BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
+fileMap f paths = fileMapWithPath (\_ -> f) paths
+
+
+-- compute a hash in hex
+getHashX hex blake salt message = hex $ blake salt $ BSL.unpack message
+
+getHash256   = getHashX hex32 blake256
+getHash224   = getHashX hex32 blake224
+getHash512   = getHashX hex64 blake512
+getHash384   = getHashX hex64 blake384
+
+-- print a list of numbers as a hex string
+hex32 ws = T.pack $ (printf "%08x" ) =<< ws
+hex64 ws = T.pack $ (printf "%016x") =<< ws
+
+
+-- print out the BLAKE hash followed by the file name
+printHash getHash salt path message = 
+    do
+        hash <- return $ getHash (map fromIntegral salt) message
+        BSL.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
+
+
+-- check one hash line (i.e., aas98d4a654...5756 *README.txt)
+checkHash getHash salt line = 
+  do
+    let [savedHash, path] = T.splitOn (T.pack " *") line
+
+    message <- BSL.readFile (T.unpack path)
+
+    let testedHash = getHash (map fromIntegral salt) $ message
+
+    if testedHash == savedHash
+    then BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": OK")
+    else BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": FAILED")
+
+
+-- check message (file) of hashes
+checkHashesInMessage f salt = mapM_ (checkHash f salt) 
 
 
 printHashes alg salt paths =
@@ -162,24 +164,6 @@ checkHashes alg salt paths =
                 _   -> error "unavailable algorithm size"
     in
         fileMap ((checkHash' salt) . T.lines . E.decodeUtf8) paths
-
-
--- check message (file) of hashes
-checkHashesInMessage f salt = mapM_ (checkHash f salt) 
-
-
--- check one hash line (i.e., aas98d4a654...5756 *README.txt)
-checkHash getHash salt line = 
-  do
-    let [savedHash, path] = T.splitOn (T.pack " *") line
-
-    message <- BSL.readFile (T.unpack path)
-
-    let testedHash = getHash (map fromIntegral salt) $ message
-
-    if testedHash == savedHash
-    then BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": OK")
-    else BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack ": FAILED")
 
 
 main = 

@@ -115,6 +115,7 @@ printHash384 = printHash getHash384
 -- call a function on stdin (as a ByteString)
 inF g = BSL.getContents >>= g
 
+
 -- call a function on a file [or stdin, when "-"] (as a ByteString)
 fileF g path =
     if path == "-"
@@ -122,38 +123,49 @@ fileF g path =
     else BSL.readFile path >>= g
 
 
--- print the hashes of each of a list of files and/or stdin
-printHashesX printHash paths = 
-    let
-        g = printHash "-"
-        h = \path -> (fileF $ printHash path) path
+-- apply a function to a list of files and/or stdin
+fileMap :: ( BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
+fileMap f paths = fileMapWithPath (\_ -> f) paths
+
+
+-- apply a function (which uses the path) to a list of files and/or stdin
+fileMapWithPath :: ( FilePath -> BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
+fileMapWithPath f paths = 
+    let    
+        -- apply f to stdin
+        stdinF :: IO ()
+        stdinF = BSL.getContents >>= f "-"
+
+        -- apply f to a file (or stdin, when "-")
+        fileF :: FilePath -> IO ()
+        fileF "-"  = stdinF
+        fileF path = BSL.readFile path >>= f path
     in
         case paths of
-            [] -> inF g
-            _  -> mapM_ h paths
+            [] -> stdinF
+            _  -> mapM_ fileF paths
 
 
-printHashes 256 salt = printHashesX $ printHash256 salt
-printHashes 512 salt = printHashesX $ printHash512 salt
-printHashes 224 salt = printHashesX $ printHash224 salt
-printHashes 384 salt = printHashesX $ printHash384 salt
-printHashes _   _    = error "unavailable algorithm size"
+printHashes alg salt paths = let printHash' = case alg of 
+                                                256 -> printHash256
+                                                224 -> printHash224
+                                                512 -> printHash512
+                                                384 -> printHash384
+                                                _   -> error "unavailable algorithm size"
+                            in
+                                fileMapWithPath (printHash' salt) paths
 
 
--- check the hashes within each of a list of files and/or stdin
-checkHashesX checkHashes paths = 
+checkHashes alg salt paths =
     let
-      g = checkHashes . T.lines . E.decodeUtf8
+        checkHash' = case alg of
+                         256 -> checkHashesInMessage getHash256
+                         224 -> checkHashesInMessage getHash224
+                         512 -> checkHashesInMessage getHash512
+                         384 -> checkHashesInMessage getHash384
+                         _   -> error "unavailable algorithm size"
     in
-      case paths of
-        [] -> inF g
-        _  -> mapM_ (fileF g) paths
-
-checkHashes 256 salt = checkHashesX $ checkHashesInMessage getHash256 salt
-checkHashes 512 salt = checkHashesX $ checkHashesInMessage getHash512 salt
-checkHashes 224 salt = checkHashesX $ checkHashesInMessage getHash224 salt
-checkHashes 384 salt = checkHashesX $ checkHashesInMessage getHash384 salt
-checkHashes _   _    = error "unavailable algorithm size"
+        fileMap ((checkHash' salt) . T.lines . E.decodeUtf8) paths
 
 
 -- check message (file) of hashes

@@ -251,14 +251,14 @@ from8toN size mydata =
     loop [] mydata
 
 
-toByteString :: Integral a => Int -> [a] -> B.ByteString
+toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
 toByteString size mydata =
     let
         octets = size `div` 8
-        toBytes w = map (\n -> (fromIntegral w) `shiftR` (n*8) .&. 0xff) $ reverse [0..octets-1]
+        g w n = w `shiftR` (n*8)
+        toBytes w = map (g w) $ reverse [0..octets-1]
     in
-        B.pack $ toBytes =<< mydata
-        
+        B.pack $ map fromIntegral $ toBytes =<< mydata
 
 
 {-

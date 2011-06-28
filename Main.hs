@@ -17,7 +17,7 @@ import Data.Word
 
 
 -- TODO: my function names often suck
--- TODO: may need to add error handling for excessively long inputs per the BLAKE paper)
+-- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
 
 
 -- command line options
@@ -73,7 +73,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version A"
+                        hPutStrLn stderr $ me ++ " version B"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
@@ -103,22 +103,15 @@ fileMap f paths = fileMapWithPath (\_ -> f) paths
 
 
 -- convert a digest into text
-textDigest :: PrintfArg a => Int -> [a] -> T.Text
-textDigest wordsize digest = 
-    let
-        fmt = case wordsize of
-                32 ->  "%08x"
-                64 -> "%016x"
-                _  -> error "textDigest: size makes no sense"
-    in
-        T.pack $ (printf fmt) =<< digest
+textDigest digest = 
+    T.pack $ (printf "%02x") =<< BSL.unpack digest
 
 
 -- compute a hash, return text
-getHash256 salt message = textDigest 32 $ blake256 salt $ BSL.unpack message
-getHash224 salt message = textDigest 32 $ blake224 salt $ BSL.unpack message
-getHash512 salt message = textDigest 64 $ blake512 salt $ BSL.unpack message
-getHash384 salt message = textDigest 64 $ blake384 salt $ BSL.unpack message
+getHash256 salt message = textDigest $ blake256 salt message
+getHash224 salt message = textDigest $ blake224 salt message
+getHash512 salt message = textDigest $ blake512 salt message
+getHash384 salt message = textDigest $ blake384 salt message
 
 
 -- print out the BLAKE hash followed by the file name

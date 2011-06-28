@@ -8,6 +8,7 @@ module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
 import Data.Bits
 import Data.Word
 import Data.List  -- needed for zipWith4
+import qualified Data.ByteString.Lazy as B
 
 
 -- BLAKE-224 initial values
@@ -186,7 +187,6 @@ blakeRoundX bitshiftKernel messageblock state rnd =
                                        where sh n = shiftRowRight n (cols' !! n)
                 in
 
-                -- clunky: TODO
                 concat $ shiftRows cols
         in
 
@@ -228,7 +228,6 @@ compress roundFunc rounds initialState h m s t =
                 where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
 
 
-
 -- group bytes into larger words
 -- should be built-in?
 from8toN :: Bits a => Int -> [Word8] -> [a]
@@ -250,6 +249,16 @@ from8toN size mydata =
 
     -- fold into words
     loop [] mydata
+
+
+toByteString :: Integral a => Int -> [a] -> B.ByteString
+toByteString size mydata =
+    let
+        octets = size `div` 8
+        toBytes w = map (\n -> (fromIntegral w) `shiftR` (n*8) .&. 0xff) $ reverse [0..octets-1]
+    in
+        B.pack $ toBytes =<< mydata
+        
 
 
 {-
@@ -360,16 +369,41 @@ blake compressF blocks initialValues salt message =
       else foldl' compress' initialValues $ blocks message
      
 
-blake256 :: [Word32] -> [Word8] -> [Word32]
-blake256 = blake compress256 blocks256 initialValues256
+-- TODO: REFACTOR THESE:
+--
+blake256 :: [Word32] -> B.ByteString -> B.ByteString
+blake256 salt message = 
+    let
+        blake' :: [Word32] -> [Word8] -> [Word32]
+        blake' = blake compress256 blocks256 initialValues256
+    in 
+        toByteString 32 $ blake' salt $ B.unpack message
 
-blake512 :: [Word64] -> [Word8] -> [Word64]
-blake512 = blake compress512 blocks512 initialValues512
 
-blake224 :: [Word32] -> [Word8] -> [Word32]
-blake224 a b = take 7 $ blake compress224 blocks224 initialValues224 a b
+blake512 :: [Word64] -> B.ByteString -> B.ByteString
+blake512 salt message =
+    let
+        blake' :: [Word64] -> [Word8] -> [Word64]
+        blake' = blake compress512 blocks512 initialValues512
+    in
+        toByteString 64 $ blake' salt $ B.unpack message
+        
 
-blake384 :: [Word64] -> [Word8] -> [Word64]
-blake384 a b = take 6 $ blake compress384 blocks384 initialValues384 a b
+blake224 :: [Word32] -> B.ByteString -> B.ByteString
+blake224 salt message =
+    let
+        blake' :: [Word32] -> [Word8] -> [Word32]
+        blake' s m = take 7 $ blake compress224 blocks224 initialValues224 s m
+    in
+        toByteString 32 $ blake' salt $ B.unpack message
 
+
+blake384 :: [Word64] -> B.ByteString -> B.ByteString
+blake384 salt message =
+    let
+        blake' :: [Word64] -> [Word8] -> [Word64]
+        blake' s m = take 6 $ blake compress384 blocks384 initialValues384 s m
+    in
+        toByteString 64 $ blake' salt $ B.unpack message
+        
 

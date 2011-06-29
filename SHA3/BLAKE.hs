@@ -369,41 +369,53 @@ blake compressF blocks initialValues salt message =
       else foldl' compress' initialValues $ blocks message
      
 
--- TODO: REFACTOR THESE:
---
-blake256 :: [Word32] -> B.ByteString -> B.ByteString
+-- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString
+
+blake256 :: B.ByteString -> B.ByteString -> B.ByteString
 blake256 salt message = 
     let
         blake' :: [Word32] -> [Word8] -> [Word32]
         blake' = blake compress256 blocks256 initialValues256
-    in 
-        toByteString 32 $ blake' salt $ B.unpack message
+
+        salt' = from8toN 32 $ B.unpack salt
+        message' = B.unpack message
+    in
+        toByteString 32 $ blake' salt' message'
 
 
-blake512 :: [Word64] -> B.ByteString -> B.ByteString
+blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
         blake' :: [Word64] -> [Word8] -> [Word64]
         blake' = blake compress512 blocks512 initialValues512
+
+        salt' = from8toN 64 $ B.unpack salt
+        message' = B.unpack message
     in
-        toByteString 64 $ blake' salt $ B.unpack message
+        toByteString 64 $ blake' salt' message'
         
 
-blake224 :: [Word32] -> B.ByteString -> B.ByteString
+blake224 :: B.ByteString -> B.ByteString -> B.ByteString
 blake224 salt message =
     let
         blake' :: [Word32] -> [Word8] -> [Word32]
         blake' s m = take 7 $ blake compress224 blocks224 initialValues224 s m
+
+        salt' = from8toN 32 $ B.unpack salt
+        message' = B.unpack message
     in
-        toByteString 32 $ blake' salt $ B.unpack message
+        toByteString 32 $ blake' salt' message'
 
 
-blake384 :: [Word64] -> B.ByteString -> B.ByteString
+blake384 :: B.ByteString -> B.ByteString -> B.ByteString
 blake384 salt message =
     let
         blake' :: [Word64] -> [Word8] -> [Word64]
         blake' s m = take 6 $ blake compress384 blocks384 initialValues384 s m
+
+        salt' = from8toN 64 $ B.unpack salt
+        message' = B.unpack message
     in
-        toByteString 64 $ blake' salt $ B.unpack message
+        toByteString 64 $ blake' salt' message'
         
 

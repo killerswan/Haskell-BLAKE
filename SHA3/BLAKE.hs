@@ -11,6 +11,42 @@ import Data.List  -- needed for zipWith4
 import qualified Data.ByteString.Lazy as B
 
 
+-- TODO: my function names often suck
+-- TODO: wrangle some types into submission
+-- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
+--
+-- IS THERE A GRACEFUL  WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
+-- how about with vectors or repa or something?
+
+
+{-
+-- 16 words
+type MessageBlock32 = [Word32]
+type MessageBlock64 = [Word64]
+
+-- 4 words
+type Salt32 = [Word32]
+type Salt64 = [Word64]
+
+-- 8 words
+type Hash32 = [Word32]
+type Hash64 = [Word64]
+
+-- 8 words
+type Chain32 = [Word32]
+type Chain64 = [Word64]
+
+-- 16 words
+type State32 = [Word32]
+type State64 = [Word64]
+
+-- 2 words
+-- cumulative bit length
+type Counter32 = [Word32]
+type Counter64 = [Word64]
+-}
+
+
 -- BLAKE-224 initial values
 initialValues224 :: [Word32]
 initialValues224 =
@@ -261,30 +297,6 @@ toByteString size mydata =
         toBytes w = map (g w) $ reverse [0..octets-1]
     in
         B.pack $ map fromIntegral $ toBytes =<< mydata
-
-
-{-
-
--- IS THERE A GRACEFUL  WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
--- how about with vectors or repa or something?
-
--- TODO: my function names often suck
--- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
-
--- 16 words
-type MessageBlock = [Word32]
-
--- 4 words
-type Salt = [Word32]
-
--- 16 words
-type Hash = [Word32]
-
--- 2 words
--- cumulative bit length
-type Counter = [Word32]
-
--}
 
 
 -- BLAKE padding

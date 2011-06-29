@@ -17,6 +17,7 @@ The BLAKE proposal:
     http://131002.net/blake/blake.pdf
 
 TODO: 
-    - make the demo Main.hs do 512 bit hash, use salts, and a check mode
-    - add 224 bit and 384 bit hashes
+    - use better names and types
+    - annotate more with haddock (for cabal, hackage)
+    - benchmark++
 

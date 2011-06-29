@@ -3,7 +3,7 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
---module Main (main) where
+module Main (main) where
 
 import SHA3.BLAKE
 import qualified Data.ByteString.Lazy as B

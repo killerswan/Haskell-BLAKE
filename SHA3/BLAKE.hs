@@ -170,6 +170,53 @@ blakeRound256 = blakeRoundX bitshift256
 -- BLAKE-512 round function
 blakeRound512 = blakeRoundX bitshift512
 
+
+-- EXPANSION
+
+-- rotate a 2d list
+rotate4 m = map rot [0,1,2,3]
+             where rot n = map (!! n) m
+
+-- apply G to columns
+-- then rotate result back into order
+-- TODO: parallel?
+applyColumns g state' = 
+    let 
+        cols = map (g state')
+                    -- i, cells for each Gi
+                    [ (0, [0,4,8,12]),
+                      (1, [1,5,9,13]), 
+                      (2, [2,6,10,14]), 
+                      (3, [3,7,11,15]) ] 
+    in
+    concat $ rotate4 cols
+
+
+-- apply G to diagonals
+-- then rotate result back into order
+-- TODO: parallel?
+applyDiagonals g state' = 
+    let 
+        diags = map (g state')
+                    -- i, cells for each Gi
+                    [ (4, [0,5,10,15]),
+                      (5, [1,6,11,12]), 
+                      (6, [2,7,8,13]), 
+                      (7, [3,4,9,14]) ] 
+
+        cols = rotate4 diags
+
+        shiftRowRight n row = drop j row ++ take j row
+                                where j = length row - n
+
+        shiftRows cols' = map sh [0,1,2,3]
+                           where sh n = shiftRowRight n (cols' !! n)
+    in
+
+    concat $ shiftRows cols
+-- END EXPANSION
+
+
 -- generic round function
 -- apply multiple G computations for a single round
 --
@@ -181,6 +228,7 @@ blakeRoundX bitshiftKernel messageblock state rnd =
             -- perform one G
             g state' = bitshiftKernel state' messageblock rnd
 
+{-
 
             -- rotate a 2d list
             rotate4 m = map rot [0,1,2,3]
@@ -224,9 +272,11 @@ blakeRoundX bitshiftKernel messageblock state rnd =
                 in
 
                 concat $ shiftRows cols
+-}
         in
 
-        applyDiagonals $ applyColumns state
+        applyDiagonals g $ applyColumns g state
+        --applyDiagonals $ applyColumns state
 
 
 -- initial 16 word state for compressing a block

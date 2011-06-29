@@ -2,12 +2,12 @@ REM First, the BLAKE algorithms
 tests.exe
 
 REM Next, some writing
-blakesum.exe        README Main.hs Tests.hs SHA3\BLAKE.hs > 256.tmp
-blakesum.exe -a 512 README Main.hs Tests.hs SHA3\BLAKE.hs > 512.tmp
+blakesum.exe        -s 15,70897,2,17 README Main.hs Tests.hs SHA3\BLAKE.hs > 256.tmp
+blakesum.exe -a 512                  README Main.hs Tests.hs SHA3\BLAKE.hs > 512.tmp
 
 REM Then checking those writes
-blakesum.exe -c        256.tmp
-blakesum.exe -c -a 512 512.tmp
+blakesum.exe -c        -s 15,70897,2,17 256.tmp
+blakesum.exe -c -a 512                  512.tmp
 
 del 256.tmp 512.tmp
 

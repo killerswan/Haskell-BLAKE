@@ -6,7 +6,7 @@
 module Main (main) where
 
 import SHA3.BLAKE
-import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy as B
 import System
 import IO
 import Text.Printf
@@ -80,17 +80,17 @@ options = [ Option "a" ["algorithm"]
 
 
 -- apply a function (which uses the path) to a list of files and/or stdin
-fileMapWithPath :: ( FilePath -> BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
+fileMapWithPath :: ( FilePath -> B.ByteString -> IO () ) -> [FilePath] -> IO ()
 fileMapWithPath f paths = 
     let    
         -- apply f to stdin
         stdinF :: IO ()
-        stdinF = BSL.getContents >>= f "-"
+        stdinF = B.getContents >>= f "-"
 
         -- apply f to a file (or stdin, when "-")
         fileF :: FilePath -> IO ()
         fileF "-"  = stdinF
-        fileF path = BSL.readFile path >>= f path
+        fileF path = B.readFile path >>= f path
     in
         case paths of
             [] -> stdinF
@@ -98,13 +98,13 @@ fileMapWithPath f paths =
 
 
 -- apply a function to a list of files and/or stdin
-fileMap :: ( BSL.ByteString -> IO () ) -> [FilePath] -> IO ()
+fileMap :: ( B.ByteString -> IO () ) -> [FilePath] -> IO ()
 fileMap f paths = fileMapWithPath (\_ -> f) paths
 
 
 -- convert a digest into text
 textDigest digest = 
-    T.pack $ (printf "%02x") =<< BSL.unpack digest
+    T.pack $ (printf "%02x") =<< B.unpack digest
 
 
 -- compute a hash, return text
@@ -118,7 +118,7 @@ getHash384 salt message = textDigest $ blake384 salt message
 printHash getHash salt path message = 
     do
         hash <- return $ getHash (map fromIntegral salt) message
-        BSL.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
+        B.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
 
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
@@ -126,7 +126,7 @@ checkHash getHash salt line =
   do
     let [savedHash, path] = T.splitOn (T.pack " *") line
 
-    message <- BSL.readFile (T.unpack path)
+    message <- B.readFile (T.unpack path)
 
     let testedHash = getHash (map fromIntegral salt) $ message
 
@@ -134,7 +134,7 @@ checkHash getHash salt line =
                  then "OK"
                  else "FAILED"
 
-    BSL.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack $ ": " ++ status)
+    B.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack $ ": " ++ status)
 
 
 -- check message (file) of hashes

@@ -10,6 +10,8 @@ import Data.Bits
 import Data.Word
 
 
+-- convert words to bytes in a ByteString
+-- the word array input typically needs a type annotation
 toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
 toByteString size mydata =
     let

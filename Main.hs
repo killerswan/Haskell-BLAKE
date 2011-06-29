@@ -14,6 +14,7 @@ import System.Console.GetOpt
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as E
 import Data.Word
+import System.Directory
 
 
 -- TODO: my function names often suck
@@ -90,7 +91,7 @@ fileMapWithPath f paths =
         -- apply f to a file (or stdin, when "-")
         fileF :: FilePath -> IO ()
         fileF "-"  = stdinF
-        fileF path = B.readFile path >>= f path
+        fileF path = (B.readFile path >>= f path) `catch` (\e -> hPutStrLn stderr (show e))
     in
         case paths of
             [] -> stdinF
@@ -123,9 +124,9 @@ printHash getHash salt path message =
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
 checkHash getHash salt line = 
-  do
-    let [savedHash, path] = T.splitOn (T.pack " *") line
-
+ let [savedHash, path] = T.splitOn (T.pack " *") line
+ in
+  (do
     message <- B.readFile (T.unpack path)
 
     let testedHash = getHash salt message
@@ -135,6 +136,9 @@ checkHash getHash salt line =
                  else "FAILED"
 
     B.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack $ ": " ++ status)
+
+  ) `catch` (\e -> hPutStrLn stderr (show e) 
+                   >> (B.putStrLn $ E.encodeUtf8 $ T.append path $ T.pack ": FAILED open or read"))
 
 
 -- check message (file) of hashes

@@ -24,3 +24,15 @@ echo "holy cow" | blakesum.exe -a 512
 echo "holy cow" | blakesum.exe -a 512 -s 23,14,5423,54
 
 REM Needs more tests...
+
+REM (this sucks in DOS...)
+
+REM blakesum realfile unreadablefile nonexistantfile realfile
+REM expected: sum, error, error, sum
+
+REM blakesum -c savedhashes
+REM where hashes include realfile unreadablefile nonexistantfile realfile
+REM expected: sum, error+output message, error+output message, sum
+
+
+

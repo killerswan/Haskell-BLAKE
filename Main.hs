@@ -108,16 +108,16 @@ textDigest digest =
 
 
 -- compute a hash, return text
-getHash256 salt message = textDigest $ blake256 salt message
-getHash224 salt message = textDigest $ blake224 salt message
-getHash512 salt message = textDigest $ blake512 salt message
-getHash384 salt message = textDigest $ blake384 salt message
+getHash256 salt message = textDigest $ blake256 (toByteString 32 salt) message
+getHash224 salt message = textDigest $ blake224 (toByteString 32 salt) message
+getHash512 salt message = textDigest $ blake512 (toByteString 64 salt) message
+getHash384 salt message = textDigest $ blake384 (toByteString 64 salt) message
 
 
 -- print out the BLAKE hash followed by the file name
 printHash getHash salt path message = 
     do
-        hash <- return $ getHash (map fromIntegral salt) message
+        hash <- return $ getHash salt message
         B.putStrLn $ E.encodeUtf8 $ T.concat [hash, T.pack " *", T.pack path]
 
 
@@ -128,7 +128,7 @@ checkHash getHash salt line =
 
     message <- B.readFile (T.unpack path)
 
-    let testedHash = getHash (map fromIntegral salt) $ message
+    let testedHash = getHash salt message
 
     let status = if testedHash == savedHash
                  then "OK"

@@ -3,7 +3,7 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
+module SHA3.BLAKE ( blake256, blake512, blake224, blake384, toByteString ) where
 
 import Data.Bits
 import Data.Word
@@ -251,6 +251,8 @@ from8toN size mydata =
     loop [] mydata
 
 
+-- convert words to bytes in a ByteString
+-- the word array input typically needs a type annotation
 toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
 toByteString size mydata =
     let

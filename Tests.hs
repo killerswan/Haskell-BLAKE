@@ -10,20 +10,7 @@ import Data.Bits
 import Data.Word
 
 
--- convert words to bytes in a ByteString
--- the word array input typically needs a type annotation
-toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
-toByteString size mydata =
-    let
-        octets = size `div` 8
-        g w n = w `shiftR` (n*8)
-        toBytes w = map (g w) $ reverse [0..octets-1]
-    in
-        B.pack $ map fromIntegral $ toBytes =<< mydata
-
-
 zeroByteString n = B.pack $ take n $ repeat 0
-
 
 test_toByteString :: Test
 test_toByteString = 

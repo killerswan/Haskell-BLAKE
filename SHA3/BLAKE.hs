@@ -268,6 +268,9 @@ toByteString size mydata =
 -- IS THERE A GRACEFUL  WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
 -- how about with vectors or repa or something?
 
+-- TODO: my function names often suck
+-- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
+
 -- 16 words
 type MessageBlock = [Word32]
 

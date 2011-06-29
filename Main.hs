@@ -3,7 +3,7 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
-module Main (main) where
+--module Main (main) where
 
 import SHA3.BLAKE
 import qualified Data.ByteString.Lazy as B
@@ -17,16 +17,13 @@ import Data.Word
 import System.Directory
 
 
--- TODO: my function names often suck
--- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
-
-
 -- command line options
 data Options = Options { help      :: Bool
                        , check_     :: Bool
                        , algorithm :: Integer
                        , salt_      :: [Integer] 
                        }
+
 
 -- command line defaults
 defaultOpts :: Options
@@ -35,6 +32,7 @@ defaultOpts = Options { help = False
                       , algorithm = 256
                       , salt_ = [0,0,0,0]
                       }
+
 
 -- command line description
 -- this format is kinda bone headed:
@@ -104,6 +102,7 @@ fileMap f paths = fileMapWithPath (\_ -> f) paths
 
 
 -- convert a digest into text
+textDigest :: B.ByteString -> T.Text
 textDigest digest = 
     T.pack $ (printf "%02x") =<< B.unpack digest
 
@@ -124,25 +123,19 @@ printHash getHash salt path message =
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
 checkHash getHash salt line = 
- let [savedHash, path] = T.splitOn (T.pack " *") line
- in
-  (do
-    message <- B.readFile (T.unpack path)
+    let
+        [savedHash, path]  = T.splitOn (T.pack " *") line
+        printStatus status = B.putStrLn $ E.encodeUtf8 $ T.append path $ T.pack $ ": " ++ status
+    in
+        (do
+            message <- B.readFile (T.unpack path)
 
-    let testedHash = getHash salt message
+            printStatus $ if savedHash == getHash salt message
+                          then "OK"
+                          else "FAILED"
 
-    let status = if testedHash == savedHash
-                 then "OK"
-                 else "FAILED"
-
-    B.putStrLn $ E.encodeUtf8 $ path `T.append` (T.pack $ ": " ++ status)
-
-  ) `catch` (\e -> hPutStrLn stderr (show e) 
-                   >> (B.putStrLn $ E.encodeUtf8 $ T.append path $ T.pack ": FAILED open or read"))
-
-
--- check message (file) of hashes
-checkHashesInMessage f salt = mapM_ (checkHash f salt) 
+        ) `catch` (\e -> hPutStrLn stderr (show e) 
+                         >> printStatus "FAILED open or read")
 
 
 -- print hashes of given files
@@ -162,7 +155,11 @@ printHashes alg salt paths =
 -- check hashes within given files
 checkHashes alg salt paths =
     let
-        checkHash' =
+        -- check message (file) of hashes
+        checkHashesInMessage f salt = mapM_ (checkHash f salt) 
+
+
+        checkHashes' =
             case alg of
                 256 -> checkHashesInMessage getHash256
                 224 -> checkHashesInMessage getHash224
@@ -170,7 +167,7 @@ checkHashes alg salt paths =
                 384 -> checkHashesInMessage getHash384
                 _   -> error "unavailable algorithm size"
     in
-        fileMap ((checkHash' salt) . T.lines . E.decodeUtf8) paths
+        fileMap ((checkHashes' salt) . T.lines . E.decodeUtf8) paths
 
 
 main = 

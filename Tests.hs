@@ -20,6 +20,14 @@ toByteString size mydata =
         B.pack $ map fromIntegral $ toBytes =<< mydata
 
 
+test_toByteString :: Test
+test_toByteString = 
+    TestCase $ do
+        assertEqual "some sample numbers..."
+            (toByteString 32 ([0x99887766, 0x55443322, 0x11001122] :: [Word32]))
+            (B.pack [0x99,0x88,0x77,0x66, 0x55,0x44,0x33,0x22, 0x11,0x00,0x11,0x22])
+
+        
 test_blake256 :: Test 
 test_blake256 = 
     TestCase $ do
@@ -77,6 +85,7 @@ tests = TestList [ "BLAKE-256"            ~: test_blake256
                  , "BLAKE-512"            ~: test_blake512
                  , "BLAKE-224"            ~: test_blake224
                  , "BLAKE-384"            ~: test_blake384
+                 , "Conversion to ByteStrings" ~: test_toByteString
                  ]
 
 

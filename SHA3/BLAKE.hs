@@ -3,6 +3,8 @@
 -- A naive implementation of the Blake cryptographic hash: 
 -- use at your own risk.
 
+{-# LANGUAGE BangPatterns #-}
+
 module SHA3.BLAKE ( blake256, blake512, blake224, blake384, toByteString ) where
 
 import Data.Bits
@@ -158,11 +160,10 @@ bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) =
 -- BLAKE-256 bit shifting
 bitshift256 :: [Word32] -> [Word32] -> Int -> (Int, [Int]) -> [Word32]
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
---
+
 -- BLAKE-512 bit shifting
 bitshift512 :: [Word64] -> [Word64] -> Int -> (Int, [Int]) -> [Word64]
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
-
 
 -- BLAKE-256 round function
 blakeRound256 = blakeRoundX bitshift256
@@ -170,8 +171,6 @@ blakeRound256 = blakeRoundX bitshift256
 -- BLAKE-512 round function
 blakeRound512 = blakeRoundX bitshift512
 
-
--- EXPANSION
 
 -- rotate a 2d list
 rotate4 m = map rot [0,1,2,3]
@@ -195,6 +194,7 @@ applyColumns g state' =
 -- apply G to diagonals
 -- then rotate result back into order
 -- TODO: parallel?
+-- NOTE: seq on state' causes more heap use, doesn't change overall shape
 applyDiagonals g state' = 
     let 
         diags = map (g state')
@@ -214,7 +214,6 @@ applyDiagonals g state' =
     in
 
     concat $ shiftRows cols
--- END EXPANSION
 
 
 -- generic round function
@@ -227,56 +226,9 @@ blakeRoundX bitshiftKernel messageblock state rnd =
         let 
             -- perform one G
             g state' = bitshiftKernel state' messageblock rnd
-
-{-
-
-            -- rotate a 2d list
-            rotate4 m = map rot [0,1,2,3]
-                         where rot n = map (!! n) m
-
-
-            -- apply G to columns
-            -- then rotate result back into order
-            -- TODO: parallel?
-            applyColumns state' = 
-                let 
-                    cols = map (g state')
-                                -- i, cells for each Gi
-                                [ (0, [0,4,8,12]),
-                                  (1, [1,5,9,13]), 
-                                  (2, [2,6,10,14]), 
-                                  (3, [3,7,11,15]) ] 
-                in
-                concat $ rotate4 cols
-
-
-            -- apply G to diagonals
-            -- then rotate result back into order
-            -- TODO: parallel?
-            applyDiagonals state' = 
-                let 
-                    diags = map (g state')
-                                -- i, cells for each Gi
-                                [ (4, [0,5,10,15]),
-                                  (5, [1,6,11,12]), 
-                                  (6, [2,7,8,13]), 
-                                  (7, [3,4,9,14]) ] 
-
-                    cols = rotate4 diags
-
-                    shiftRowRight n row = drop j row ++ take j row
-                                            where j = length row - n
-
-                    shiftRows cols' = map sh [0,1,2,3]
-                                       where sh n = shiftRowRight n (cols' !! n)
-                in
-
-                concat $ shiftRows cols
--}
         in
 
         applyDiagonals g $ applyColumns g state
-        --applyDiagonals $ applyColumns state
 
 
 -- initial 16 word state for compressing a block
@@ -306,7 +258,7 @@ compress512 = compress blakeRound512 16 initialState512
 compress roundFunc rounds initialState h m s t =
     let 
         -- e.g., do 14 rounds on this messageblock for 256-bit
-        v = foldl' (roundFunc m) (initialState h s t) [0..rounds-1]
+        v = foldl (roundFunc m) (initialState h s t) [0..rounds-1]
     in
 
     -- finalize
@@ -325,7 +277,7 @@ from8toN size mydata =
         getWord os = if length os /= octets then
                             error "sorry, would have to pad this list to make words"
                      else
-                            foldl' f 0 os
+                            foldl f 0 os
             where f acc word = (acc `shift` 8) + (fromIntegral word)
 
         -- make list of words
@@ -370,6 +322,7 @@ blocks512 :: [Word8] -> [([Word64], [Word64])]
 blocks512 = blocksX 64 0x01
 --
 -- generic
+-- NOTE: making message' strict (i.e., `!message'`) causes no obvious change
 blocksX wordSize paddingTerminator message' = 
 
     let 
@@ -433,7 +386,7 @@ blake compressF blocks initialValues salt message =
     in
       if length salt /= 4
       then error "blake: your salt is not four words"
-      else foldl' compress' initialValues $ blocks message
+      else foldl compress' initialValues $ blocks message
      
 
 -- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString

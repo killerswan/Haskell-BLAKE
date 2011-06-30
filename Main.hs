@@ -156,7 +156,7 @@ printHashes alg salt paths =
 checkHashes alg salt paths =
     let
         -- check message (file) of hashes
-        checkHashesInMessage f salt = mapM_ (checkHash f salt) 
+        checkHashesInMessage f salt' = mapM_ (checkHash f salt') 
 
 
         checkHashes' =

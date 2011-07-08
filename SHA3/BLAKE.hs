@@ -153,33 +153,8 @@ blakeRound256 = blakeRoundX bitshift256
 blakeRound512 = blakeRoundX bitshift512
 
 
--- rotate a 2d list
-rotate4 m = map rot [0,1,2,3]
-             where rot n = map (!! n) m
-
-
-get4 :: (Int, Int, Int, Int) -> Array Int a -> (a,a,a,a)
-get4 (w,x,y,z) state =
-    (state ! w, state ! x, state ! y, state ! z)
-
-
-
-sortListToColumns [c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15] =
-    [[c0,c4,c8,c12], [c1,c5,c9,c13], [c2,c6,c10,c14], [c3,c7,c11,c15]] 
-
-
-sortColumnsToDiagonals [[c0,c4,c8,c12], [c1,c5,c9,c13], [c2,c6,c10,c14], [c3,c7,c11,c15]] =
-    [[c0, c5, c10, c15], [c1,c6,c11,c12], [c2,c7, c8, c13], [c3,c4,c9,c14]]
-
-
-sortDiagonalsToList [[d0, d5, d10, d15], [d1,d6,d11,d12], [d2,d7, d8, d13], [d3,d4,d9,d14]] =
-    [d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15]
-
-
-
 -- apply G to columns
 -- then rotate result back into order
--- TODO: parallel?
 applyColumns g state' = 
     let 
         cols = map (g state')
@@ -188,14 +163,15 @@ applyColumns g state' =
                       (1, [1,5,9,13]), 
                       (2, [2,6,10,14]), 
                       (3, [3,7,11,15]) ] 
+
+        row n = map (!! n) cols
+
     in
-    concat $ rotate4 cols
+        row =<< [0,1,2,3]
 
 
 -- apply G to diagonals
 -- then rotate result back into order
--- TODO: parallel?
--- NOTE: seq on state' causes more heap use, doesn't change overall shape
 applyDiagonals g state' = 
     let 
         diags = map (g state')
@@ -205,19 +181,14 @@ applyDiagonals g state' =
                       (6, [2,7,8,13]), 
                       (7, [3,4,9,14]) ] 
 
-        cols = rotate4 diags
+        row' n = map (!! n) diags
 
+        row n = b ++ a
+                where (a,b) = splitAt (4-n) (row' n)
 
     in
-
-    concat $ shiftRows cols
-
-
-shiftRows cols' = map sh [0,1,2,3]
-                  where sh n = shiftRowRight n (cols' !! n)
-                        shiftRowRight n row = drop j row ++ take j row
-                                              where j = length row - n
-
+        row =<< [0,1,2,3]
+        
 
 -- generic round function
 -- apply multiple G computations for a single round
@@ -225,12 +196,10 @@ shiftRows cols' = map sh [0,1,2,3]
 -- This is uglier than the fold I had before,
 -- but this can be parallelized a teeny bit...
 blakeRoundX bitshiftKernel messageblock state rnd = 
-
-        let 
-            -- perform one G
-            g state' = bitshiftKernel state' messageblock rnd
-        in
-
+    let 
+        -- perform one G
+        g state' = bitshiftKernel state' messageblock rnd
+    in
         applyDiagonals g $ applyColumns g state
 
 
@@ -399,7 +368,7 @@ blake compress blocks initialValues salt message =
     in
       if length salt /= 4
       then error "blake: your salt is not four words"
-      else foldl' (compress salt) initialValues $ blocks message
+      else foldl (compress salt) initialValues $ blocks message
      
 
 -- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString

@@ -296,7 +296,6 @@ blocks512 :: [Word8] -> [([Word64], [Word64])]
 blocks512 = blocksX 64 0x01
 --
 -- generic
--- NOTE: making message' strict (i.e., `!message'`) causes no obvious change
 blocksX wordSize paddingTerminator message' = 
 
     let 

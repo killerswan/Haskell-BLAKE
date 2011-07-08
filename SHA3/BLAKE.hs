@@ -11,42 +11,14 @@ import Data.Bits
 import Data.Word
 import Data.List  -- needed for zipWith4
 import qualified Data.ByteString.Lazy as B
+import Data.Array.Unboxed
+import qualified Data.Foldable as F
 
 
 -- TODO: my function names often suck
 -- TODO: wrangle some types into submission
 -- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
---
--- IS THERE A GRACEFUL  WAY TO MAKE HASKELL DO LENGTH CHECKING BY TYPE?
--- how about with vectors or repa or something?
-
-
-{-
--- 16 words
-type MessageBlock32 = [Word32]
-type MessageBlock64 = [Word64]
-
--- 4 words
-type Salt32 = [Word32]
-type Salt64 = [Word64]
-
--- 8 words
-type Hash32 = [Word32]
-type Hash64 = [Word64]
-
--- 8 words
-type Chain32 = [Word32]
-type Chain64 = [Word64]
-
--- 16 words
-type State32 = [Word32]
-type State64 = [Word64]
-
--- 2 words
--- cumulative bit length
-type Counter32 = [Word32]
-type Counter64 = [Word64]
--}
+-- TODO: how about with vectors or repa or something?
 
 
 -- BLAKE-224 initial values
@@ -131,7 +103,16 @@ sigmaTable =
 -- perform a given Gi within the round function
 --
 -- generic bit shifting
-bitshiftX :: Bits a => [a] -> (Int,Int,Int,Int) -> [a] -> [a] -> Int -> (Int, [Int]) -> [a]
+{-
+bitshiftX :: Bits a 
+          => [a]                -- constants
+          -> (Int,Int,Int,Int)  -- rotate by ...
+          -> Array Int a        -- in: 16 word state
+          -> Array Int a        -- messageblock
+          -> Int                -- round
+          -> (Int, [Int])       -- i of G(i) being computed
+          -> Array Int a        -- out: row or diagonal
+-}
 bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) = 
                 let 
                     -- cells to handle
@@ -176,6 +157,26 @@ blakeRound512 = blakeRoundX bitshift512
 rotate4 m = map rot [0,1,2,3]
              where rot n = map (!! n) m
 
+
+get4 :: (Int, Int, Int, Int) -> Array Int a -> (a,a,a,a)
+get4 (w,x,y,z) state =
+    (state ! w, state ! x, state ! y, state ! z)
+
+
+
+sortListToColumns [c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15] =
+    [[c0,c4,c8,c12], [c1,c5,c9,c13], [c2,c6,c10,c14], [c3,c7,c11,c15]] 
+
+
+sortColumnsToDiagonals [[c0,c4,c8,c12], [c1,c5,c9,c13], [c2,c6,c10,c14], [c3,c7,c11,c15]] =
+    [[c0, c5, c10, c15], [c1,c6,c11,c12], [c2,c7, c8, c13], [c3,c4,c9,c14]]
+
+
+sortDiagonalsToList [[d0, d5, d10, d15], [d1,d6,d11,d12], [d2,d7, d8, d13], [d3,d4,d9,d14]] =
+    [d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15]
+
+
+
 -- apply G to columns
 -- then rotate result back into order
 -- TODO: parallel?
@@ -206,14 +207,16 @@ applyDiagonals g state' =
 
         cols = rotate4 diags
 
-        shiftRowRight n row = drop j row ++ take j row
-                                where j = length row - n
 
-        shiftRows cols' = map sh [0,1,2,3]
-                           where sh n = shiftRowRight n (cols' !! n)
     in
 
     concat $ shiftRows cols
+
+
+shiftRows cols' = map sh [0,1,2,3]
+                  where sh n = shiftRowRight n (cols' !! n)
+                        shiftRowRight n row = drop j row ++ take j row
+                                              where j = length row - n
 
 
 -- generic round function
@@ -251,11 +254,11 @@ initialStateX constants h s t =
 -- t is a counter       0-1
 -- return h'
 --compress :: Int -> Hash -> MessageBlock -> Salt -> Counter -> Hash
-compress224 = compress blakeRound256 14 initialState224
-compress256 = compress blakeRound256 14 initialState256
-compress384 = compress blakeRound512 16 initialState384
-compress512 = compress blakeRound512 16 initialState512
-compress roundFunc rounds initialState h m s t =
+compress224 = compressX blakeRound256 14 initialState224
+compress256 = compressX blakeRound256 14 initialState256
+compress384 = compressX blakeRound512 16 initialState384
+compress512 = compressX blakeRound512 16 initialState512
+compressX roundFunc rounds initialState s h (m,t) =
     let 
         -- e.g., do 14 rounds on this messageblock for 256-bit
         v = foldl (roundFunc m) (initialState h s t) [0..rounds-1]
@@ -326,43 +329,29 @@ blocks512 = blocksX 64 0x01
 blocksX wordSize paddingTerminator message' = 
 
     let 
-        loop :: (Bits a, Integral a, Num a) => Integer -> [Word8] -> [( [a], [a] )]
-        loop counter message =
+        loop :: (Bits a, Integral a, Num a) => Integer -> [[Word8]] -> [( [a], [a] )]
+        loop counter (next:remaining) =  -- TODO WARNING ASAP: this is nonexhaustive, see, e.g.:
+                                         -- > blake512 (B.pack $ take 32 $ repeat 0) $ B.pack $ take 1024 $ repeat 0
             let 
-                hashSize = 8 * wordSize -- i.e. 256
-                blockSize = 16 * wordSize
-                blockBytes = blockSize `div` 8
+                -- number of bytes in a block of 16 words
+                blockBytes = 16 * wordSize `div` 8
     
-                -- the next message block
-                next = take blockBytes message
-
                 -- block length in bits
                 len = 8 * length next
 
                 -- cumulative block length in bits
                 counter' = counter + fromIntegral len
 
-                -- counter, in two words
                 splitCounter = fromIntegral (counter' `shift` (-wordSize)) : fromIntegral counter' : []
-
             in
 
-
             -- needs padding?
-            if len < blockSize
+            if len < (16 * wordSize) -- each block will be 16 words
             then
                 -- this is the last message block (empty or partial)
-                let simplePadding = 
-                        let target = 2 * hashSize - 2 - 2 * wordSize -- length zero padding will be used to build, 446 or 894
-                            zerobits  = (target - len) `mod` blockSize -- where len is bytes in this data
-                            zerobytes = (zerobits - 7 - 7) `div` 8
-                        in 
-                        case zerobits of 
-                            z | z == 6 -> [0x80 + paddingTerminator] -- ^ one byte
-                            z | z >  6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
-                            _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
-
-                    final = from8toN wordSize (next ++ simplePadding) ++ splitCounter
+                let
+                    simplePadding' = simplePadding len wordSize paddingTerminator
+                    final = from8toN wordSize (next ++ simplePadding') ++ splitCounter
                 in
             
                 case length final of
@@ -373,20 +362,44 @@ blocksX wordSize paddingTerminator message' =
             
             else
                 -- this is an ordinary message block, so recurse
-                ( from8toN wordSize next, splitCounter ) : (loop counter' (drop blockBytes message))
+                let nxt = (from8toN wordSize next, splitCounter)
+                in nxt : loop counter' remaining
 
     in
-    loop 0 message'
+    loop 0 $ blocksInUnpaddedBytes wordSize message'
+
+
+blocksInUnpaddedBytes wordSize []      = []
+blocksInUnpaddedBytes wordSize message = let (next, remaining) = splitAt ( 16 * wordSize `div` 8 ) message -- bytes in 16 words
+                                         in next : blocksInUnpaddedBytes wordSize remaining
         
 
---blake :: Int -> Salt -> [Word8] -> Hash
-blake compressF blocks initialValues salt message =
+-- pad a last block
+-- of message as needed
+simplePadding :: Int      -- block bitlength
+              -> Int      -- word bitlength
+              -> Word8    -- 0x01 or 0x00
+              -> [Word8]  -- padded space, e.g. 0b1000...00001
+
+simplePadding len wordSize paddingTerminator = 
     let
-      compress' h (m,t) = compressF h m salt t
+        target    = (14 * wordSize) - 2 -- length zero padding will be used to build, 446 or 894
+        zerobits  = (target - len) `mod` (16 * wordSize) -- where len is bytes in this data
+        zerobytes = (zerobits - 7 - 7) `div` 8
+    in 
+        case zerobits of 
+            z | z == 6 -> [0x80 + paddingTerminator] -- ^ one byte
+            z | z >  6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
+            _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
+
+
+--blake :: Int -> Salt -> [Word8] -> Hash
+blake compress blocks initialValues salt message =
+    let
     in
       if length salt /= 4
       then error "blake: your salt is not four words"
-      else foldl compress' initialValues $ blocks message
+      else foldl' (compress salt) initialValues $ blocks message
      
 
 -- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString

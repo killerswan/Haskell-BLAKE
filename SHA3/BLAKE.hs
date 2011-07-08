@@ -183,6 +183,7 @@ applyDiagonals g state' =
 
         row' n = map (!! n) diags
 
+        -- spin a row
         row n = b ++ a
                 where (a,b) = splitAt (4-n) (row' n)
 
@@ -230,6 +231,7 @@ compress512 = compressX blakeRound512 16 initialState512
 compressX roundFunc rounds initialState s h (m,t) =
     let 
         -- e.g., do 14 rounds on this messageblock for 256-bit
+        -- WARNING: this lazy foldl dramatically reduces heap use...
         v = foldl (roundFunc m) (initialState h s t) [0..rounds-1]
     in
 
@@ -249,7 +251,7 @@ from8toN size mydata =
         getWord os = if length os /= octets then
                             error "sorry, would have to pad this list to make words"
                      else
-                            foldl f 0 os
+                            foldl' f 0 os
             where f acc word = (acc `shift` 8) + (fromIntegral word)
 
         -- make list of words
@@ -368,7 +370,7 @@ blake compress blocks initialValues salt message =
     in
       if length salt /= 4
       then error "blake: your salt is not four words"
-      else foldl (compress salt) initialValues $ blocks message
+      else foldl' (compress salt) initialValues $ blocks message
      
 
 -- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString

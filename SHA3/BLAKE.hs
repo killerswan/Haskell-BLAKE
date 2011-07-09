@@ -11,8 +11,7 @@ import Data.Bits
 import Data.Word
 import Data.List  -- needed for zipWith4
 import qualified Data.ByteString.Lazy as B
-import Data.Array.Unboxed
-import qualified Data.Foldable as F
+import qualified Data.Vector.Storable as V
 
 
 -- TODO: my function names often suck
@@ -40,8 +39,9 @@ initialValues256 =
 
 
 -- BLAKE-256 constants
-constants256 :: [Word32]
+constants256 :: V.Vector Word32
 constants256 = 
+  V.fromList
     [ 0x243f6a88, 0x85a308d3,
       0x13198a2e, 0x03707344,
       0xa4093822, 0x299f31d0,
@@ -71,8 +71,9 @@ initialValues512 =
 
 
 -- BLAKE-512 constants
-constants512 :: [Word64]
+constants512 :: V.Vector Word64
 constants512 = 
+  V.fromList
     [ 0x243F6A8885A308D3, 0x13198A2E03707344,
       0xA4093822299F31D0, 0x082EFA98EC4E6C89,
       0x452821E638D01377, 0xBE5466CF34E90C6C,
@@ -98,7 +99,6 @@ sigmaTable =
      [ 10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0 ]]
 
 
-
 -- bit shift
 -- perform a given Gi within the round function
 --
@@ -122,7 +122,7 @@ bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) =
                     sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
                     messageword n = messageblock !! sigma n
-                    constant    n = constants !! sigma n
+                    constant    n = constants V.! sigma n
             
                     -- compute the rnd
                     a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
@@ -211,9 +211,16 @@ initialState224 = initialState256
 initialState256 = initialStateX constants256
 initialState384 = initialState512
 initialState512 = initialStateX constants512
+
+initialStateX :: (Bits a, V.Storable a)
+              => V.Vector a
+              -> [a]
+              -> [a]
+              -> [a]
+              -> [a]
 initialStateX constants h s t = 
     h ++ 
-    zipWith xor (s ++ [t!!1, t!!1, t!!0, t!!0]) (take 8 constants)
+    zipWith xor (s ++ [t!!1, t!!1, t!!0, t!!0]) (V.toList $ V.take 8 constants)
 
 
 -- BLAKE-256 compression of one message block

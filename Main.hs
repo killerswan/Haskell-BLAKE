@@ -175,10 +175,7 @@ main =
         args <- getArgs
 
         -- call getOpt with the option description
-        -- returns
-        --    actions to do
-        --    leftover nonOptions
-        --    errors (here, simply _)
+        -- ignoring errors
         let (actions, nonOptions, _) = getOpt Permute options args
 
         -- process the defaults with those actions

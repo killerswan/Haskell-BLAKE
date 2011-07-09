@@ -12,7 +12,7 @@ FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
 #time ./blakesum.exe "SHA3\BLAKE.hs" +RTS -p -hc
 #time ./blakesum.exe "C:\Users\Kevin\Desktop\Next_700.pdf" +RTS -M1G -hy
 #time ./blakesum.exe "$FILE" +RTS -M1G -hy
-time ./blakesum.exe "$FILE" +RTS -M900M -hc
+time ./blakesum.exe "$FILE" +RTS -M900M -hy
 
 hp2ps -e8in -c blakesum.hp
 cygstart blakesum.ps

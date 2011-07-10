@@ -4,3 +4,9 @@
 *.hi
 *.o
 *.tmp
+*.png
+*.hp
+*.prof
+*.aux
+*.ps
+testheap.data

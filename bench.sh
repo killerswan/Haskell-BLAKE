@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 
 # DELETE OLD
@@ -16,12 +16,12 @@ ghc -Wall -O2 -prof -auto-all -rtsopts -fforce-recomp -o blakesum --make Main
 date
 ./blakesum.exe --version
 
-#FILE="testheap.data"
+#FILE="testheap.data"  # about 840 megabytes
 FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
 
 # +RTS -p -hd OR -hc OR -hy
 # +RTS -M1G -hy
-time ./blakesum.exe "$FILE" +RTS -M900M -hy
+time ./blakesum.exe -a 512 "$FILE" +RTS -hc
 [ -r blakesum.hp ] || exit 1
 
 

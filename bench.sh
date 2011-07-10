@@ -1,22 +1,32 @@
-rm blakesum.exe
+#!/usr/bin/bash
+
+
+# DELETE OLD
+[ -f blakesum.exe ] && rm blakesum.exe
+[ -f blakesum.hp  ] && rm blakesum.hp
+[ -f blakesum.ps  ] && rm blakesum.ps
+
+
+# COMPILE
 ghc -Wall -O2 -prof -auto-all -rtsopts -fforce-recomp -o blakesum --make Main
+[ -x blakesum.exe ] || exit 1
 
-./blakesum.exe --version
+
+# RUN AND PROFILE
 date
+./blakesum.exe --version
 
-FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
 #FILE="testheap.data"
+FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
 
-#time ./blakesum.exe "C:\Users\Kevin\Desktop\Next_700.pdf" +RTS -p -hd
-#time ./blakesum.exe "C:\Users\Kevin\Desktop\Next_700.pdf" +RTS -p -hc
-#time ./blakesum.exe "SHA3\BLAKE.hs" +RTS -p -hc
-#time ./blakesum.exe "C:\Users\Kevin\Desktop\Next_700.pdf" +RTS -M1G -hy
-#time ./blakesum.exe "$FILE" +RTS -M1G -hy
+# +RTS -p -hd OR -hc OR -hy
+# +RTS -M1G -hy
 time ./blakesum.exe "$FILE" +RTS -M900M -hy
+[ -r blakesum.hp ] || exit 1
 
-hp2ps -e8in -c blakesum.hp
+
+# DISPLAY PROFILE
+hp2ps -e8in -d -c blakesum.hp
 cygstart blakesum.ps
 
-## broken
-#hp2pretty --uniform-scale=time blakesum.hp
-#cygstart blakesum.svg
+

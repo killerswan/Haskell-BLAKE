@@ -390,16 +390,47 @@ blake256 salt message =
         toByteString 32 $ blake' salt' message'
 
 
+
+
+-- how do I make it generic
+-- even though ByteString isn't an [a]?
+nfoldl n fn xs =
+    let
+        (x, xs') = B.splitAt n xs
+    in
+        fn x : nfoldl n fn xs'
+
+
+growWord :: (Integral a, Bits a) 
+         => B.ByteString 
+         -> a
+
+growWord = B.foldl' shiftAcc 0
+           where shiftAcc acc x = (fromIntegral acc `shift` 8) + fromIntegral (x)
+
+
+makeWords32    :: B.ByteString -> [Word32]
+makeWords32 ss = nfoldl 4 growWord ss
+
+
+makeWords64    :: B.ByteString -> [Word64]
+makeWords64 ss = nfoldl 8 growWord ss
+
+
+    
+
+
+blake512_salt = (from8toN 64) . B.unpack 
+blake512_message = B.unpack
+blake512_pack = toByteString 64
+
 blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
         blake' :: [Word64] -> [Word8] -> [Word64]
         blake' = blake bitshift512 16 constants512 blocks512 initialValues512
-
-        salt' = from8toN 64 $ B.unpack salt
-        message' = B.unpack message
     in
-        toByteString 64 $ blake' salt' message'
+        blake512_pack $ blake' (blake512_salt salt) (blake512_message message)
         
 
 blake224 :: B.ByteString -> B.ByteString -> B.ByteString

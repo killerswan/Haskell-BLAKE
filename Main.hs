@@ -72,7 +72,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version E"
+                        hPutStrLn stderr $ me ++ " version F"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]

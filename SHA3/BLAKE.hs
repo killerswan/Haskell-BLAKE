@@ -284,76 +284,111 @@ toByteString size mydata =
 -- with a counter per block
 --
 -- 256
-blocks224 :: [Word8] -> [(V.Vector Word32, [Word32])]
-blocks224 = blocksX 32 0x00
+blocks224 :: B.ByteString -> [(V.Vector Word32, [Word32])]
+blocks224 = blocksX makeWords32 32 0x00
 --
 -- 256
-blocks256 :: [Word8] -> [(V.Vector Word32, [Word32])]
-blocks256 = blocksX 32 0x01
+blocks256 :: B.ByteString -> [(V.Vector Word32, [Word32])]
+blocks256 = blocksX makeWords32 32 0x01
 --
 -- 384
-blocks384 :: [Word8] -> [(V.Vector Word64, [Word64])]
-blocks384 = blocksX 64 0x00
+blocks384 :: B.ByteString -> [(V.Vector Word64, [Word64])]
+blocks384 = blocksX makeWords64 64 0x00
 --
 -- 512
-blocks512 :: [Word8] -> [(V.Vector Word64, [Word64])]
-blocks512 = blocksX 64 0x01
---
--- generic
-blocksX wordSize paddingTerminator message' = 
+blocks512 :: B.ByteString -> [(V.Vector Word64, [Word64])]
+blocks512 = blocksX makeWords64 64 0x01
 
-    let 
-        loop :: (Bits a, Integral a, Num a, V.Storable a) => Integer -> [[Word8]] -> [( (V.Vector a), [a] )]
-        loop counter (next:remaining) =  -- TODO WARNING ASAP: this is nonexhaustive, see, e.g.:
-                                         -- > blake512 (B.pack $ take 32 $ repeat 0) $ B.pack $ take 1024 $ repeat 0
+
+blocksX :: (Bits a, Integral a, Num a, V.Storable a, Integral b) 
+        => (B.ByteString -> [a]) 
+        -> b
+        -> Word8 
+        -> B.ByteString 
+        -> [( V.Vector a, [a] )]
+
+blocksX makeWords wordSize paddingTerminator message' = 
+    let
+        -- number of bytes in a block of 16 words
+        blockBytes = 16 * wordSize `div` 8
+
+        loop counter message = 
             let 
-                -- number of bytes in a block of 16 words
-                blockBytes = 16 * wordSize `div` 8
-    
+
+                (m, ms) = B.splitAt (fromIntegral blockBytes) message
+
                 -- block length in bits
-                len = 8 * length next
+                len = 8 * B.length m
 
                 -- cumulative block length in bits
-                counter' = counter + fromIntegral len
+                counter' = (counter :: Integer) + fromIntegral len
 
-                splitCounter = fromIntegral (counter' `shift` (-wordSize)) : fromIntegral counter' : []
+                counterMSW   = fromIntegral $ counter' `shiftR` (fromIntegral wordSize :: Int)
+                counterLSW   = fromIntegral counter'
+
+                splitCounter = [counterMSW, counterLSW]
+
             in
+                if (fromIntegral len) < (16 * (fromIntegral wordSize)) || ms == B.empty
+                then -- final
+                    let
+                        simplePadding' = simplePadding (fromIntegral len) (fromIntegral wordSize) paddingTerminator
+                        final = makeWords (B.append m simplePadding') ++ splitCounter
 
-            -- needs padding?
-            if len < (16 * wordSize) -- each block will be 16 words
-            then
-                -- this is the last message block (empty or partial)
-                let
-                    simplePadding' = simplePadding len wordSize paddingTerminator
-                    final = from8toN wordSize (next ++ simplePadding') ++ splitCounter
-                in
-            
-                case length final of
-                    -- each message block is padded to 16 words
-                    16 -> [( (V.fromList final), splitCounter )]
-                    32 -> [( (V.fromList $ take 16 final), splitCounter ), ( (V.fromList $ drop 16 final), [0,0] )]
-                    _  -> error "we have created a monster! padding --> nonsense"
-            
-            else
-                -- this is an ordinary message block, so recurse
-                let nxt = ((V.fromList $ from8toN wordSize next), splitCounter)
-                in nxt : loop counter' remaining
+                    in
+                        case length final of
+                            -- each message block is padded to 16 words
+                            16 -> [( (V.fromList final),           splitCounter )]
+                            32 -> [( (V.fromList $ take 16 final), splitCounter ), 
+                                   ( (V.fromList $ drop 16 final), [0,0] )]
+                            _  -> error "we have created a monster! padding --> nonsense"
+                        
+                else -- regular
+                    ((V.fromList $ makeWords m), splitCounter) : loop counter' ms
 
     in
-    loop 0 $ blocksInUnpaddedBytes wordSize message'
+        loop 0 message'
 
 
-blocksInUnpaddedBytes wordSize []      = []
-blocksInUnpaddedBytes wordSize message = let (next, remaining) = splitAt ( 16 * wordSize `div` 8 ) message -- bytes in 16 words
-                                         in next : blocksInUnpaddedBytes wordSize remaining
-        
+-- how do I make it generic
+-- even though ByteString isn't an [a]?
+-- experiment: extra function for the end
+nfoldl n fn1 fn2 xs =
+    let
+        (x, xs') = B.splitAt n xs
+    in
+        if (B.length x) < n || xs' == B.empty
+        then
+            [fn2 x]
+        else
+            fn1 x : nfoldl n fn1 fn2 xs'
+
+
+-- turn a ByteString into an integer
+growWord :: (Integral a, Bits a) 
+         => B.ByteString 
+         -> a
+
+growWord = B.foldl' shiftAcc 0
+           where shiftAcc acc x = (fromIntegral acc `shift` 8) + fromIntegral x
+
+
+makeWords32 :: B.ByteString -> [Word32]
+makeWords32 ss = nfoldl 4 growWord growWord ss
+
+
+makeWords64 :: B.ByteString -> [Word64]
+makeWords64 ss = nfoldl 8 growWord growWord ss
+
 
 -- pad a last block
 -- of message as needed
-simplePadding :: Int      -- block bitlength
-              -> Int      -- word bitlength
-              -> Word8    -- 0x01 or 0x00
-              -> [Word8]  -- padded space, e.g. 0b1000...00001
+{-
+simplePadding :: Int           -- block bitlength
+              -> Int           -- word bitlength
+              -> Word8         -- 0x01 or 0x00
+              -> B.ByteString  -- padded space, e.g. 0b1000...00001
+-}
 
 simplePadding len wordSize paddingTerminator = 
     let
@@ -362,8 +397,8 @@ simplePadding len wordSize paddingTerminator =
         zerobytes = (zerobits - 7 - 7) `div` 8
     in 
         case zerobits of 
-            z | z == 6 -> [0x80 + paddingTerminator] -- ^ one byte
-            z | z >  6 -> [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
+            z | z == 6 -> B.pack $ [0x80 + paddingTerminator] -- ^ one byte
+            z | z >  6 -> B.pack $ [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
 
@@ -381,53 +416,24 @@ blake bitshift rounds constants blocks initialValues salt message =
 blake256 :: B.ByteString -> B.ByteString -> B.ByteString
 blake256 salt message = 
     let
-        blake' :: [Word32] -> [Word8] -> [Word32]
+        blake' :: [Word32] -> B.ByteString -> [Word32]
         blake' = blake bitshift256 14 constants256 blocks256 initialValues256
 
         salt' = from8toN 32 $ B.unpack salt
-        message' = B.unpack message
+       
     in
-        toByteString 32 $ blake' salt' message'
-
-
-
-
--- how do I make it generic
--- even though ByteString isn't an [a]?
-nfoldl n fn xs =
-    let
-        (x, xs') = B.splitAt n xs
-    in
-        fn x : nfoldl n fn xs'
-
-
-growWord :: (Integral a, Bits a) 
-         => B.ByteString 
-         -> a
-
-growWord = B.foldl' shiftAcc 0
-           where shiftAcc acc x = (fromIntegral acc `shift` 8) + fromIntegral (x)
-
-
-makeWords32    :: B.ByteString -> [Word32]
-makeWords32 ss = nfoldl 4 growWord ss
-
-
-makeWords64    :: B.ByteString -> [Word64]
-makeWords64 ss = nfoldl 8 growWord ss
-
-
-    
+        toByteString 32 $ blake' salt' message
 
 
 blake512_salt = (from8toN 64) . B.unpack 
-blake512_message = B.unpack
+blake512_message = id
 blake512_pack = toByteString 64
+
 
 blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
-        blake' :: [Word64] -> [Word8] -> [Word64]
+        blake' :: [Word64] -> B.ByteString -> [Word64]
         blake' = blake bitshift512 16 constants512 blocks512 initialValues512
     in
         blake512_pack $ blake' (blake512_salt salt) (blake512_message message)
@@ -436,24 +442,22 @@ blake512 salt message =
 blake224 :: B.ByteString -> B.ByteString -> B.ByteString
 blake224 salt message =
     let
-        blake' :: [Word32] -> [Word8] -> [Word32]
+        blake' :: [Word32] -> B.ByteString -> [Word32]
         blake' s m = take 7 $ blake bitshift256 14 constants256 blocks224 initialValues224 s m
 
         salt' = from8toN 32 $ B.unpack salt
-        message' = B.unpack message
     in
-        toByteString 32 $ blake' salt' message'
+        toByteString 32 $ blake' salt' message
 
 
 blake384 :: B.ByteString -> B.ByteString -> B.ByteString
 blake384 salt message =
     let
-        blake' :: [Word64] -> [Word8] -> [Word64]
+        blake' :: [Word64] -> B.ByteString -> [Word64]
         blake' s m = take 6 $ blake bitshift512 16 constants512 blocks384 initialValues384 s m
 
         salt' = from8toN 64 $ B.unpack salt
-        message' = B.unpack message
     in
-        toByteString 64 $ blake' salt' message'
+        toByteString 64 $ blake' salt' message
         
 

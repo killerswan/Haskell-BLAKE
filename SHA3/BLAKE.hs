@@ -9,6 +9,7 @@ module SHA3.BLAKE ( blake256, blake512, blake224, blake384, toByteString ) where
 
 import Data.Bits
 import Data.Word
+import Data.Int
 import Data.List  -- needed for zipWith4
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Vector.Storable as V
@@ -107,25 +108,23 @@ sigmaTable =
 -- perform a given Gi within the round function
 --
 -- generic bit shifting
-{-
-bitshiftX :: Bits a 
-          => [a]                -- constants
+bitshiftX :: (Bits a, V.Storable a) 
+          => V.Vector a         -- constants
           -> (Int,Int,Int,Int)  -- rotate by ...
-          -> Array Int a        -- in: 16 word state
-          -> Array Int a        -- messageblock
+          -> V.Vector a         -- in: 16 word state
+          -> V.Vector a         -- messageblock
           -> Int                -- round
           -> (Int, [Int])       -- i of G(i) being computed
-          -> Array Int a        -- out: row or diagonal
--}
+          -> [a]         -- out: row or diagonal
 bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) = 
                 let 
                     -- cells to handle
-                    [a,b,c,d] = map (state !!) cells
+                    [a,b,c,d] = map (state V.!) cells
                 
                     -- get sigma
                     sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
-                    messageword n = messageblock !! sigma n
+                    messageword n = messageblock V.! sigma n
                     constant    n = constants V.! sigma n
             
                     -- compute the rnd
@@ -143,11 +142,11 @@ bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) =
                 [a'', b'', c'', d'']
 --
 -- BLAKE-256 bit shifting
-bitshift256 :: [Word32] -> [Word32] -> Int -> (Int, [Int]) -> [Word32]
+bitshift256 :: V.Vector Word32 -> V.Vector Word32 -> Int -> (Int, [Int]) -> [Word32]
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 
 -- BLAKE-512 bit shifting
-bitshift512 :: [Word64] -> [Word64] -> Int -> (Int, [Int]) -> [Word64]
+bitshift512 :: V.Vector Word64 -> V.Vector Word64 -> Int -> (Int, [Int]) -> [Word64]
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
@@ -157,15 +156,15 @@ applyColumns g state' =
     let 
         cols = map (g state')
                     -- i, cells for each Gi
-                    [ (0, [0,4,8,12]),
-                      (1, [1,5,9,13]), 
+                    [ (0, [0,4, 8,12]),
+                      (1, [1,5, 9,13]), 
                       (2, [2,6,10,14]), 
                       (3, [3,7,11,15]) ] 
 
         row n = map (!! n) cols
 
     in
-        row =<< [0,1,2,3]
+        V.fromList $ row =<< [0,1,2,3]
 
 
 -- apply G to diagonals
@@ -173,11 +172,19 @@ applyColumns g state' =
 applyDiagonals g state' = 
     let 
         diags = map (g state')
+                {-
+                    -- i, cells for each Gi
+                    -- WITHOUT ROTATING RESULTS OF Gi COLUMNS
+                    [ (4, []),
+                      (5, []),
+                      (6, []),
+                      (7, []) ]
+                -}
                     -- i, cells for each Gi
                     [ (4, [0,5,10,15]),
                       (5, [1,6,11,12]), 
-                      (6, [2,7,8,13]), 
-                      (7, [3,4,9,14]) ] 
+                      (6, [2,7, 8,13]), 
+                      (7, [3,4, 9,14]) ] 
 
         row' n = map (!! n) diags
 
@@ -186,22 +193,23 @@ applyDiagonals g state' =
                 where (a,b) = splitAt (4-n) (row' n)
 
     in
-        row =<< [0,1,2,3]
+        V.fromList $ row =<< [0,1,2,3]
         
 
 -- generic round function
 -- apply multiple G computations for a single round
---
--- This is uglier than the fold I had before,
--- but this can be parallelized a teeny bit...
-blakeRound bitshiftKernel messageblock state rnd = 
---                        vec          vec        -> vec
+blakeRound :: (V.Storable a)
+           => (V.Vector a -> V.Vector a -> Int -> (Int, [Int]) -> [a])
+           -> V.Vector a
+           -> V.Vector a
+           -> Int
+           -> V.Vector a
+blakeRound bitshift messageblock state rnd = 
     let 
         -- perform one G
-        g state' = bitshiftKernel (V.toList state') (V.toList messageblock) rnd
+        g state' = bitshift state' messageblock rnd
     in
-        V.fromList $ applyDiagonals g $ V.fromList $ applyColumns g state
-
+        applyDiagonals g $ applyColumns g state
 
 
 -- initial 16 word state for compressing a block
@@ -300,22 +308,23 @@ blocks512 :: B.ByteString -> [(V.Vector Word64, [Word64])]
 blocks512 = blocksX makeWords64 64 0x01
 
 
-blocksX :: (Bits a, Integral a, Num a, V.Storable a, Integral b) 
+
+-- TODO: I'd rather slice the input instead of making new vectors
+--
+blocksX :: (Bits a, Integral a, Num a, V.Storable a) 
         => (B.ByteString -> [a]) 
-        -> b
+        -> Int64
         -> Word8 
         -> B.ByteString 
         -> [( V.Vector a, [a] )]
 
 blocksX makeWords wordSize paddingTerminator message' = 
     let
-        -- number of bytes in a block of 16 words
-        blockBytes = 16 * wordSize `div` 8
-
         loop counter message = 
             let 
 
-                (m, ms) = B.splitAt (fromIntegral blockBytes) message
+                -- split bytes at 16 words of type a
+                (m, ms) = B.splitAt (wordSize * 2) message
 
                 -- block length in bits
                 len = 8 * B.length m
@@ -329,10 +338,10 @@ blocksX makeWords wordSize paddingTerminator message' =
                 splitCounter = [counterMSW, counterLSW]
 
             in
-                if (fromIntegral len) < (16 * (fromIntegral wordSize)) || ms == B.empty
+                if len < (16 * wordSize) || ms == B.empty
                 then -- final
                     let
-                        simplePadding' = simplePadding (fromIntegral len) (fromIntegral wordSize) paddingTerminator
+                        simplePadding' = simplePadding len wordSize paddingTerminator
                         final = makeWords (B.append m simplePadding') ++ splitCounter
 
                     in
@@ -381,24 +390,24 @@ makeWords64 :: B.ByteString -> [Word64]
 makeWords64 ss = nfoldl 8 growWord growWord ss
 
 
--- pad a last block
--- of message as needed
-{-
-simplePadding :: Int           -- block bitlength
-              -> Int           -- word bitlength
+-- pad a last block of message as needed
+-- TODO: simplify
+
+simplePadding :: Int64         -- block bitlength
+              -> Int64         -- word bitlength
               -> Word8         -- 0x01 or 0x00
               -> B.ByteString  -- padded space, e.g. 0b1000...00001
--}
 
 simplePadding len wordSize paddingTerminator = 
     let
-        target    = (14 * wordSize) - 2 -- length zero padding will be used to build, 446 or 894
-        zerobits  = (target - len) `mod` (16 * wordSize) -- where len is bytes in this data
-        zerobytes = (zerobits - 7 - 7) `div` 8
+        targetbits = (14 * wordSize) - 2                       -- length zero padding will be used to build, 446 or 894
+        zerobits   = (targetbits - len) `mod` (16 * wordSize)  -- where len is bytes in this data
+        zerobytes  = (zerobits - 7 - 7) `div` 8                -- the number of 0x00 between the 0x80 and 0x01
+        zbs        = B.take zerobytes (B.repeat 0)             -- the bytestring of 0x00
     in 
         case zerobits of 
-            z | z == 6 -> B.pack $ [0x80 + paddingTerminator] -- ^ one byte
-            z | z >  6 -> B.pack $ [0x80] ++ take zerobytes (repeat 0) ++ [paddingTerminator] -- ^ more bytes
+            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator        -- ^ one byte -- TODO: THIS CASE IS NOT TESTED?
+            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator  -- ^ more bytes
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
 
@@ -425,10 +434,6 @@ blake256 salt message =
         toByteString 32 $ blake' salt' message
 
 
-blake512_salt = (from8toN 64) . B.unpack 
-blake512_message = id
-blake512_pack = toByteString 64
-
 
 blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
@@ -436,7 +441,7 @@ blake512 salt message =
         blake' :: [Word64] -> B.ByteString -> [Word64]
         blake' = blake bitshift512 16 constants512 blocks512 initialValues512
     in
-        blake512_pack $ blake' (blake512_salt salt) (blake512_message message)
+        toByteString 64 $ blake' (makeWords64 salt) message
         
 
 blake224 :: B.ByteString -> B.ByteString -> B.ByteString

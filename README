@@ -3,8 +3,8 @@ Kevin Cantu <me@kevincantu.org>
 May 2011
 
 
-This is an experimental attempt to implement one of the SHA-3 candidate
-algorithms in Haskell.
+I have now implemented the BLAKE SHA-3 candidate algorithm in Haskell,
+and am teaching myself how to optimize it...
 
 
 NIST SHA-3:
@@ -17,7 +17,7 @@ The BLAKE proposal:
     http://131002.net/blake/blake.pdf
 
 TODO: 
-    - use better names and types
     - annotate more with haddock (for cabal, hackage)
     - benchmark++
+
 

@@ -115,7 +115,7 @@ bitshiftX :: (Bits a, V.Storable a)
           -> V.Vector a         -- messageblock
           -> Int                -- round
           -> (Int, [Int])       -- i of G(i) being computed
-          -> [a]         -- out: row or diagonal
+          -> V.Vector a         -- out: row or diagonal
 bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) = 
                 let 
                     -- cells to handle
@@ -139,14 +139,14 @@ bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) =
                 in
 
                 -- out
-                [a'', b'', c'', d'']
+                V.fromList [a'', b'', c'', d'']
 --
 -- BLAKE-256 bit shifting
-bitshift256 :: V.Vector Word32 -> V.Vector Word32 -> Int -> (Int, [Int]) -> [Word32]
+bitshift256 :: V.Vector Word32 -> V.Vector Word32 -> Int -> (Int, [Int]) -> V.Vector Word32
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 
 -- BLAKE-512 bit shifting
-bitshift512 :: V.Vector Word64 -> V.Vector Word64 -> Int -> (Int, [Int]) -> [Word64]
+bitshift512 :: V.Vector Word64 -> V.Vector Word64 -> Int -> (Int, [Int]) -> V.Vector Word64
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
@@ -161,7 +161,7 @@ applyColumns g state' =
                       (2, [2,6,10,14]),
                       (3, [3,7,11,15]) ]
     in
-        V.fromList $ concat cols
+        V.concat cols
 
 
 -- apply G to diagonals
@@ -177,7 +177,6 @@ applyDiagonals g state' =
                       (7, [12, 1, 6,11]) ] 
 
                 {-
-                    -- i, cells for each Gi
                     -- ORIGINAL
                     [ (4, [0,5,10,15]),
                       (5, [1,6,11,12]),
@@ -185,23 +184,29 @@ applyDiagonals g state' =
                       (7, [3,4, 9,14]) ]
                 -}
 
-        -- ugly?
-        manualSpin [[d0,d5,d10,d15],
-                    [d1,d6,d11,d12],
-                    [d2,d7, d8,d13],
-                    [d3,d4, d9,d14]] = [d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15]
+
+        manualSpin vs = V.fromList [vs V.! 0, vs V.! 4, vs V.! 8, vs V.!12, 
+                                    vs V.!13, vs V.! 1, vs V.! 5, vs V.! 9, 
+                                    vs V.!10, vs V.!14, vs V.! 2, vs V.! 6, 
+                                    vs V.! 7, vs V.!11, vs V.!15, vs V.! 3]
+
     in
-        V.fromList $ manualSpin diags
+        manualSpin $ V.concat diags
         
 
 -- generic round function
 -- apply multiple G computations for a single round
-blakeRound :: (V.Storable a)
-           => (V.Vector a -> V.Vector a -> Int -> (Int, [Int]) -> [a])
-           -> V.Vector a
-           -> V.Vector a
-           -> Int
-           -> V.Vector a
+blakeRound :: (V.Storable a, Bits a)
+           => (  V.Vector a    -- 16w state
+              -> V.Vector a    -- 16w message
+              -> Int           -- round number
+              -> (Int, [Int])  -- col/diag number, cells it consists of
+              -> V.Vector a    -- 4w result
+              )                         -- function to do bitshifting
+           -> V.Vector a                -- 16w message block
+           -> V.Vector a                -- 16w state
+           -> Int                       -- round number
+           -> V.Vector a                -- 16w result
 blakeRound bitshift messageblock state rnd = 
     let 
         -- perform one G

@@ -29,7 +29,7 @@ data Options = Options { help      :: Bool
 defaultOpts :: Options
 defaultOpts = Options { help = False
                       , check_ = False
-                      , algorithm = 256
+                      , algorithm = 512
                       , salt_ = [0,0,0,0]
                       }
 
@@ -72,7 +72,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version F"
+                        hPutStrLn stderr $ me ++ " version G"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]

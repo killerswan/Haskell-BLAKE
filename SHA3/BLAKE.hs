@@ -250,29 +250,6 @@ compress bitshift rounds constants s h (m,t) =
                 where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
 
 
--- group bytes into larger words
--- should be built-in?
-from8toN :: Bits a => Int -> [Word8] -> [a]
-from8toN size mydata = 
-    let 
-        octets = size `div` 8
-
-        -- make one word
-        getWord os = if length os /= octets then
-                            error "sorry, would have to pad this list to make words"
-                     else
-                            foldl' f 0 os
-            where f acc word = (acc `shift` 8) + (fromIntegral word)
-
-        -- make list of words
-        loop acc []     = acc
-        loop acc mydata' = loop (acc ++ [getWord (take octets mydata')]) (drop octets mydata')
-    in
-
-    -- fold into words
-    loop [] mydata
-
-
 -- convert words to bytes in a ByteString
 -- the word array input typically needs a type annotation
 toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
@@ -426,7 +403,7 @@ blake256 salt message =
         blake' :: [Word32] -> B.ByteString -> [Word32]
         blake' = blake bitshift256 14 constants256 blocks256 initialValues256
 
-        salt' = from8toN 32 $ B.unpack salt
+        salt' = makeWords32 salt
        
     in
         toByteString 32 $ blake' salt' message
@@ -448,7 +425,7 @@ blake224 salt message =
         blake' :: [Word32] -> B.ByteString -> [Word32]
         blake' s m = take 7 $ blake bitshift256 14 constants256 blocks224 initialValues224 s m
 
-        salt' = from8toN 32 $ B.unpack salt
+        salt' = makeWords32 salt
     in
         toByteString 32 $ blake' salt' message
 
@@ -459,7 +436,7 @@ blake384 salt message =
         blake' :: [Word64] -> B.ByteString -> [Word64]
         blake' s m = take 6 $ blake bitshift512 16 constants512 blocks384 initialValues384 s m
 
-        salt' = from8toN 64 $ B.unpack salt
+        salt' = makeWords64 salt
     in
         toByteString 64 $ blake' salt' message
         

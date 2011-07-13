@@ -27,7 +27,7 @@ function profileWithOption() {
     qrm "$EXEBASE"-"$1".hp
     qrm "$EXEBASE"-"$1".ps
 
-    time ./"$EXE" -a 512 "$FILE" +RTS $1
+    time ./"$EXE" -a 512 "$FILE" +RTS -p $1
     [ -r "$EXEBASE".hp ] || exit 1
 
     mv "$EXEBASE".hp "$EXEBASE"-"$1".hp

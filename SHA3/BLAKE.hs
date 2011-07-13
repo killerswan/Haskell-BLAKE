@@ -108,19 +108,19 @@ sigmaTable =
 -- perform a given Gi within the round function
 --
 -- generic bit shifting
+--
+-- TODO: currently this is only taking half our time?  should be more: optimize elsewhere?  but optimize this more, too
+--
 bitshiftX :: (Bits a, V.Storable a) 
           => V.Vector a         -- constants
           -> (Int,Int,Int,Int)  -- rotate by ...
-          -> V.Vector a         -- in: 16 word state
+          -> Int                -- i for which we're calculating G(i)
+          -> [a]                -- 4 word col/diag
           -> V.Vector a         -- messageblock
           -> Int                -- round
-          -> (Int, [Int])       -- i of G(i) being computed
           -> V.Vector a         -- out: row or diagonal
-bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) = 
+bitshiftX constants (rot0,rot1,rot2,rot3) ii [a,b,c,d] messageblock rnd = 
                 let 
-                    -- cells to handle
-                    [a,b,c,d] = map (state V.!) cells
-                
                     -- get sigma
                     sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
@@ -142,39 +142,36 @@ bitshiftX constants (rot0,rot1,rot2,rot3) state messageblock rnd (ii, cells) =
                 V.fromList [a'', b'', c'', d'']
 --
 -- BLAKE-256 bit shifting
-bitshift256 :: V.Vector Word32 -> V.Vector Word32 -> Int -> (Int, [Int]) -> V.Vector Word32
+bitshift256 :: Int -> [Word32] -> V.Vector Word32 -> Int -> V.Vector Word32
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 
 -- BLAKE-512 bit shifting
-bitshift512 :: V.Vector Word64 -> V.Vector Word64 -> Int -> (Int, [Int]) -> V.Vector Word64
+bitshift512 :: Int -> [Word64] -> V.Vector Word64 -> Int -> V.Vector Word64
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
 -- apply G to columns
 -- then rotate result back into order
-applyColumns g state' = 
+applyColumns g state = 
     let 
-        cols = map (g state')
-                    -- i, cells for each Gi
-                    [ (0, [0,4, 8,12]),
-                      (1, [1,5, 9,13]),
-                      (2, [2,6,10,14]),
-                      (3, [3,7,11,15]) ]
+        set = map (state V.!)
+        cols = [g 0 $ set [0,4, 8,12],
+                g 1 $ set [1,5, 9,13],
+                g 2 $ set [2,6,10,14],
+                g 3 $ set [3,7,11,15]]
     in
         V.concat cols
 
 
 -- apply G to diagonals
 -- then rotate result back into order
-applyDiagonals g state' = 
+applyDiagonals g state = 
     let 
-        diags = map (g state')
-                    -- i, cells for each Gi
-                    -- WITHOUT ROTATING RESULTS OF Gi COLUMNS
-                    [ (4, [ 0, 5,10,15]),
-                      (5, [ 4, 9,14, 3]), 
-                      (6, [ 8,13, 2, 7]), 
-                      (7, [12, 1, 6,11]) ] 
+        set = map (state V.!)
+        diags = [g 4 $ set [ 0, 5,10,15],
+                 g 5 $ set [ 4, 9,14, 3],
+                 g 6 $ set [ 8,13, 2, 7],
+                 g 7 $ set [12, 1, 6,11]]
 
                 {-
                     -- ORIGINAL
@@ -184,12 +181,14 @@ applyDiagonals g state' =
                       (7, [3,4, 9,14]) ]
                 -}
 
-
+        -- TODO: this is a timesuck?
+        -- apply diagonals eats twice as much time as columns?
+        -- was the list version of this better?
+        -- is concat where the time is?
         manualSpin vs = V.fromList [vs V.! 0, vs V.! 4, vs V.! 8, vs V.!12, 
                                     vs V.!13, vs V.! 1, vs V.! 5, vs V.! 9, 
                                     vs V.!10, vs V.!14, vs V.! 2, vs V.! 6, 
                                     vs V.! 7, vs V.!11, vs V.!15, vs V.! 3]
-
     in
         manualSpin $ V.concat diags
         
@@ -197,10 +196,10 @@ applyDiagonals g state' =
 -- generic round function
 -- apply multiple G computations for a single round
 blakeRound :: (V.Storable a, Bits a)
-           => (  V.Vector a    -- 16w state
+           => (  Int           -- i for which we're calculating G(i)
+              -> [a]           -- 4 word col/diag
               -> V.Vector a    -- 16w message
               -> Int           -- round number
-              -> (Int, [Int])  -- col/diag number, cells it consists of
               -> V.Vector a    -- 4w result
               )                         -- function to do bitshifting
            -> V.Vector a                -- 16w message block
@@ -210,7 +209,7 @@ blakeRound :: (V.Storable a, Bits a)
 blakeRound bitshift messageblock state rnd = 
     let 
         -- perform one G
-        g state' = bitshift state' messageblock rnd
+        g ii set4 = bitshift ii set4 messageblock rnd
     in
         applyDiagonals g $ applyColumns g state
 

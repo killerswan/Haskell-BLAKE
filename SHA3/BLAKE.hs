@@ -157,14 +157,11 @@ applyColumns g state' =
         cols = map (g state')
                     -- i, cells for each Gi
                     [ (0, [0,4, 8,12]),
-                      (1, [1,5, 9,13]), 
-                      (2, [2,6,10,14]), 
-                      (3, [3,7,11,15]) ] 
-
-        row n = map (!! n) cols
-
+                      (1, [1,5, 9,13]),
+                      (2, [2,6,10,14]),
+                      (3, [3,7,11,15]) ]
     in
-        V.fromList $ row =<< [0,1,2,3]
+        V.fromList $ concat cols
 
 
 -- apply G to diagonals
@@ -172,28 +169,29 @@ applyColumns g state' =
 applyDiagonals g state' = 
     let 
         diags = map (g state')
-                {-
                     -- i, cells for each Gi
                     -- WITHOUT ROTATING RESULTS OF Gi COLUMNS
-                    [ (4, []),
-                      (5, []),
-                      (6, []),
-                      (7, []) ]
-                -}
+                    [ (4, [ 0, 5,10,15]),
+                      (5, [ 4, 9,14, 3]), 
+                      (6, [ 8,13, 2, 7]), 
+                      (7, [12, 1, 6,11]) ] 
+
+                {-
                     -- i, cells for each Gi
+                    -- ORIGINAL
                     [ (4, [0,5,10,15]),
-                      (5, [1,6,11,12]), 
-                      (6, [2,7, 8,13]), 
-                      (7, [3,4, 9,14]) ] 
+                      (5, [1,6,11,12]),
+                      (6, [2,7, 8,13]),
+                      (7, [3,4, 9,14]) ]
+                -}
 
-        row' n = map (!! n) diags
-
-        -- spin a row
-        row n = b ++ a
-                where (a,b) = splitAt (4-n) (row' n)
-
+        -- ugly?
+        manualSpin [[d0,d5,d10,d15],
+                    [d1,d6,d11,d12],
+                    [d2,d7, d8,d13],
+                    [d3,d4, d9,d14]] = [d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,d11,d12,d13,d14,d15]
     in
-        V.fromList $ row =<< [0,1,2,3]
+        V.fromList $ manualSpin diags
         
 
 -- generic round function

@@ -183,7 +183,8 @@ blakeRound bitshift messageblock state rnd =
             let
                 s' = (V.!) state
             in
-                parMap rdeepseq g
+                --parMap rdeepseq g
+                map g
                     [(0, (s' 0, s' 4, s'  8, s' 12)),
                      (1, (s' 1, s' 5, s'  9, s' 13)),
                      (2, (s' 2, s' 6, s' 10, s' 14)),
@@ -201,11 +202,16 @@ blakeRound bitshift messageblock state rnd =
                         (c20,c21,c22,c23),
                         (c30,c31,c32,c33)] = 
 
-                parMap rdeepseq g
+                --parMap rdeepseq g
+                map g
                     [(4,(c00, c11, c22, c33)),
                      (5,(c10, c21, c32, c03)),
                      (6,(c20, c31, c02, c13)),
                      (7,(c30, c01, c12, c23))]
+
+        -- Why is this slower with parallel column and then diagonal calcs?
+        -- Is there some useful laziness happening between these two functions?
+        -- With rdeepseq, particularly, this cuts the heap by about 2/3, though!
 
 
         -- unwind the diagonal results
@@ -260,10 +266,17 @@ compress bitshift rounds constants s h (m,t) =
         -- e.g., do 14 rounds on this messageblock for 256-bit
         -- WARNING: this lazy foldl dramatically reduces heap use...
         v = foldl (blakeRound bitshift m) (initialState constants h s t) [0..rounds-1]
+
+        -- split it in half
+        (v0,v1) = V.splitAt 8 v
+
+        -- salt
+        s' = V.fromList s
+        s'' = s' V.++ s'
     in
 
     -- finalize
-    V.zipWith4 xor4 h ((V.fromList s) V.++ (V.fromList s)) (V.take 8 v) (V.drop 8 v)
+    V.zipWith4 xor4 h s'' v0 v1
                 where xor4 a b c d = a `xor` b `xor` c `xor` d  -- can xor be folded?
 
 

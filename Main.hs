@@ -46,7 +46,7 @@ options = [ Option "a" ["algorithm"]
                                        then return opt { algorithm = alg }
                                        else error "please choose a working algorithm size")
                         "BITS")
-                   "256, 512, 224, 384 (default: 256)"
+                   "256, 512, 224, 384 (default: 512)"
 
           , Option "c" ["check"] 
                    (NoArg $ \opt -> return opt { check_ = True })

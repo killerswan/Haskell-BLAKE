@@ -1,7 +1,7 @@
 #!/bin/bash
 
 EXEBASE=blakesum
-EXE="$EXEBASE.exe"
+EXE="$EXEBASE"
 
 # quiet rm
 function qrm() {
@@ -9,7 +9,7 @@ function qrm() {
 }
 
 # COMPILE
-qrm "$EXEBASE".exe
+qrm "$EXE"
 ghc -Wall -threaded -O2 -prof -auto-all -rtsopts -fforce-recomp -o blakesum --make Main
 [ -x "$EXE" ] || exit 1
 
@@ -18,7 +18,8 @@ ghc -Wall -threaded -O2 -prof -auto-all -rtsopts -fforce-recomp -o blakesum --ma
 
 # FILE TO TEST
 #FILE="testheap.data"  # about 840 megabytes
-FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
+#FILE="C:\Users\Kevin\Desktop\Next_700.pdf"
+FILE=Next_700.pdf
 
 # PROFILE
 # TODO: USE $@ instead of $1
@@ -32,7 +33,8 @@ function profileWithOption() {
 
     mv "$EXEBASE".hp "$EXEBASE"-"$1".hp
     hp2ps -e8in -d -c "$EXEBASE"-"$1".hp
-    cygstart "$EXEBASE"-"$1".ps
+#    cygstart "$EXEBASE"-"$1".ps
+    evince "$EXEBASE"-"$1".ps &
 }
 
 # -p -hd OR -hc OR -hy

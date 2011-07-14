@@ -115,24 +115,26 @@ bitshiftX :: (Bits a, V.Storable a)
           => V.Vector a         -- constants
           -> (Int,Int,Int,Int)  -- rotate by ...
           -> Int                -- i for which we're calculating G(i)
-          -> [a]                -- 4 word col/diag
+          -> (a,a,a,a)          -- 4 word col/diag
           -> V.Vector a         -- messageblock
           -> Int                -- round
           -> (a,a,a,a)          -- out: row or diagonal
-bitshiftX constants (rot0,rot1,rot2,rot3) ii [a,b,c,d] messageblock rnd = 
+bitshiftX constants (rot0,rot1,rot2,rot3) ii (a,b,c,d) messageblock rnd = 
                 let 
                     -- get sigma
                     sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
                     messageword n = messageblock V.! sigma n
                     constant    n = constants V.! sigma n
+
+                    i2 = 2 * ii
             
                     -- compute the rnd
-                    a'  = a  + b  + (messageword (2*ii) `xor` constant (2*ii + 1))
+                    a'  = a  + b  + (messageword (i2) `xor` constant (i2 + 1))
                     d'  = (d `xor` a') `rotate` rot0
                     c'  = c + d' 
                     b'  = (b `xor` c') `rotate` rot1
-                    a'' = a' + b' + (messageword (2*ii + 1) `xor` constant (2*ii))
+                    a'' = a' + b' + (messageword (i2 + 1) `xor` constant (i2))
                     d'' = (d' `xor` a'') `rotate` rot2
                     c'' = c' + d'' 
                     b'' = (b' `xor` c'') `rotate` rot3
@@ -142,11 +144,11 @@ bitshiftX constants (rot0,rot1,rot2,rot3) ii [a,b,c,d] messageblock rnd =
                 (a'', b'', c'', d'')
 --
 -- BLAKE-256 bit shifting
-bitshift256 :: Int -> [Word32] -> V.Vector Word32 -> Int -> (Word32,Word32,Word32,Word32)
+bitshift256 :: Int -> (Word32,Word32,Word32,Word32) -> V.Vector Word32 -> Int -> (Word32,Word32,Word32,Word32)
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 
 -- BLAKE-512 bit shifting
-bitshift512 :: Int -> [Word64] -> V.Vector Word64 -> Int -> (Word64,Word64,Word64,Word64)
+bitshift512 :: Int -> (Word64,Word64,Word64,Word64) -> V.Vector Word64 -> Int -> (Word64,Word64,Word64,Word64)
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
@@ -177,14 +179,10 @@ blakeRound bitshift messageblock state rnd =
         -- apply G to columns
         -- then rotate result back into order
         applyColumns state = 
-            let 
-                set = map (state V.!) -- TODO: would tuples be faster than lists for initial a,b,c,d?
-
-            in
-                [g 0 $ set [0,4, 8,12],
-                 g 1 $ set [1,5, 9,13],
-                 g 2 $ set [2,6,10,14],
-                 g 3 $ set [3,7,11,15]]
+            [g 0 (state V.! 0, state V.! 4, state V.!  8, state V.! 12),
+             g 1 (state V.! 1, state V.! 5, state V.!  9, state V.! 13),
+             g 2 (state V.! 2, state V.! 6, state V.! 10, state V.! 14),
+             g 3 (state V.! 3, state V.! 7, state V.! 11, state V.! 15)]
 
                         {- 4, [0,5,10,15]
                            5, [1,6,11,12]
@@ -197,10 +195,10 @@ blakeRound bitshift messageblock state rnd =
                         (c10,c11,c12,c13),
                         (c20,c21,c22,c23),
                         (c30,c31,c32,c33)] = 
-            [g 4 [ c00, c11, c22, c33],
-             g 5 [ c10, c21, c32, c03],
-             g 6 [ c20, c31, c02, c13],
-             g 7 [ c30, c01, c12, c23]]
+            [g 4 (c00, c11, c22, c33),
+             g 5 (c10, c21, c32, c03),
+             g 6 (c20, c31, c02, c13),
+             g 7 (c30, c01, c12, c23)]
 
 
         -- unwind the diagonal results

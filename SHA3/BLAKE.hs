@@ -118,7 +118,7 @@ bitshiftX :: (Bits a, V.Storable a)
           -> [a]                -- 4 word col/diag
           -> V.Vector a         -- messageblock
           -> Int                -- round
-          -> V.Vector a         -- out: row or diagonal
+          -> (a,a,a,a)          -- out: row or diagonal
 bitshiftX constants (rot0,rot1,rot2,rot3) ii [a,b,c,d] messageblock rnd = 
                 let 
                     -- get sigma
@@ -139,62 +139,22 @@ bitshiftX constants (rot0,rot1,rot2,rot3) ii [a,b,c,d] messageblock rnd =
                 in
 
                 -- out
-                V.fromList [a'', b'', c'', d'']
+                (a'', b'', c'', d'')
 --
 -- BLAKE-256 bit shifting
-bitshift256 :: Int -> [Word32] -> V.Vector Word32 -> Int -> V.Vector Word32
+bitshift256 :: Int -> [Word32] -> V.Vector Word32 -> Int -> (Word32,Word32,Word32,Word32)
 bitshift256 = bitshiftX constants256 (-16, -12,  -8,  -7)
 
 -- BLAKE-512 bit shifting
-bitshift512 :: Int -> [Word64] -> V.Vector Word64 -> Int -> V.Vector Word64
+bitshift512 :: Int -> [Word64] -> V.Vector Word64 -> Int -> (Word64,Word64,Word64,Word64)
 bitshift512 = bitshiftX constants512 (-32, -25, -16, -11)
 
 
--- apply G to columns
--- then rotate result back into order
-applyColumns g state = 
-    let 
-        set = map (state V.!)
-        cols = [g 0 $ set [0,4, 8,12],
-                g 1 $ set [1,5, 9,13],
-                g 2 $ set [2,6,10,14],
-                g 3 $ set [3,7,11,15]]
-    in
-        V.concat cols
-
-
--- apply G to diagonals
--- then rotate result back into order
-applyDiagonals g state = 
-    let 
-        set = map (state V.!)
-        diags = [g 4 $ set [ 0, 5,10,15],
-                 g 5 $ set [ 4, 9,14, 3],
-                 g 6 $ set [ 8,13, 2, 7],
-                 g 7 $ set [12, 1, 6,11]]
-
-                {-
-                    -- ORIGINAL
-                    [ (4, [0,5,10,15]),
-                      (5, [1,6,11,12]),
-                      (6, [2,7, 8,13]),
-                      (7, [3,4, 9,14]) ]
-                -}
-
-        -- TODO: this is a timesuck?
-        -- apply diagonals eats twice as much time as columns?
-        -- was the list version of this better?
-        -- is concat where the time is?
-        manualSpin vs = V.fromList [vs V.! 0, vs V.! 4, vs V.! 8, vs V.!12, 
-                                    vs V.!13, vs V.! 1, vs V.! 5, vs V.! 9, 
-                                    vs V.!10, vs V.!14, vs V.! 2, vs V.! 6, 
-                                    vs V.! 7, vs V.!11, vs V.!15, vs V.! 3]
-    in
-        manualSpin $ V.concat diags
         
 
 -- generic round function
 -- apply multiple G computations for a single round
+{-
 blakeRound :: (V.Storable a, Bits a)
            => (  Int           -- i for which we're calculating G(i)
               -> [a]           -- 4 word col/diag
@@ -206,12 +166,56 @@ blakeRound :: (V.Storable a, Bits a)
            -> V.Vector a                -- 16w state
            -> Int                       -- round number
            -> V.Vector a                -- 16w result
+-}
+
 blakeRound bitshift messageblock state rnd = 
     let 
         -- perform one G
         g ii set4 = bitshift ii set4 messageblock rnd
+
+
+        -- apply G to columns
+        -- then rotate result back into order
+        applyColumns state = 
+            let 
+                set = map (state V.!) -- TODO: would tuples be faster than lists for initial a,b,c,d?
+
+            in
+                [g 0 $ set [0,4, 8,12],
+                 g 1 $ set [1,5, 9,13],
+                 g 2 $ set [2,6,10,14],
+                 g 3 $ set [3,7,11,15]]
+
+                        {- 4, [0,5,10,15]
+                           5, [1,6,11,12]
+                           6, [2,7, 8,13]
+                           7, [3,4, 9,14] -}
+
+        -- apply G to diagonals
+        -- then rotate result back into order
+        applyDiagonals [(c00,c01,c02,c03),
+                        (c10,c11,c12,c13),
+                        (c20,c21,c22,c23),
+                        (c30,c31,c32,c33)] = 
+            [g 4 [ c00, c11, c22, c33],
+             g 5 [ c10, c21, c32, c03],
+             g 6 [ c20, c31, c02, c13],
+             g 7 [ c30, c01, c12, c23]]
+
+
+        -- unwind the diagonal results
+        manualSpin [(d00,d01,d02,d03),(d10,d11,d12,d13),(d20,d21,d22,d23),(d30,d31,d32,d33)] = 
+            V.fromList [d00, d10, d20, d30, 
+                        d31, d01, d11, d21, 
+                        d22, d32, d02, d12, 
+                        d13, d23, d33, d03]
+
+
     in
-        applyDiagonals g $ applyColumns g state
+        manualSpin $ applyDiagonals $ applyColumns state
+
+
+
 
 
 -- initial 16 word state for compressing a block

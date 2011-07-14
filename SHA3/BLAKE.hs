@@ -173,16 +173,20 @@ blakeRound :: (V.Storable a, Bits a)
 blakeRound bitshift messageblock state rnd = 
     let 
         -- perform one G
-        g ii set4 = bitshift ii set4 messageblock rnd
+        g (ii,four) = bitshift ii four messageblock rnd
 
 
         -- apply G to columns
         -- then rotate result back into order
         applyColumns state = 
-            [g 0 (state V.! 0, state V.! 4, state V.!  8, state V.! 12),
-             g 1 (state V.! 1, state V.! 5, state V.!  9, state V.! 13),
-             g 2 (state V.! 2, state V.! 6, state V.! 10, state V.! 14),
-             g 3 (state V.! 3, state V.! 7, state V.! 11, state V.! 15)]
+            let
+                s' = (V.!) state
+            in
+                map g
+                    [(0, (s' 0, s' 4, s'  8, s' 12)),
+                     (1, (s' 1, s' 5, s'  9, s' 13)),
+                     (2, (s' 2, s' 6, s' 10, s' 14)),
+                     (3, (s' 3, s' 7, s' 11, s' 15))]
 
                         {- 4, [0,5,10,15]
                            5, [1,6,11,12]
@@ -195,18 +199,24 @@ blakeRound bitshift messageblock state rnd =
                         (c10,c11,c12,c13),
                         (c20,c21,c22,c23),
                         (c30,c31,c32,c33)] = 
-            [g 4 (c00, c11, c22, c33),
-             g 5 (c10, c21, c32, c03),
-             g 6 (c20, c31, c02, c13),
-             g 7 (c30, c01, c12, c23)]
+
+                map g
+                    [(4,(c00, c11, c22, c33)),
+                     (5,(c10, c21, c32, c03)),
+                     (6,(c20, c31, c02, c13)),
+                     (7,(c30, c01, c12, c23))]
 
 
         -- unwind the diagonal results
-        manualSpin [(d00,d01,d02,d03),(d10,d11,d12,d13),(d20,d21,d22,d23),(d30,d31,d32,d33)] = 
-            V.fromList [d00, d10, d20, d30, 
-                        d31, d01, d11, d21, 
-                        d22, d32, d02, d12, 
-                        d13, d23, d33, d03]
+        manualSpin [(d00,d01,d02,d03),
+                    (d10,d11,d12,d13),
+                    (d20,d21,d22,d23),
+                    (d30,d31,d32,d33)] = 
+
+                V.fromList [d00, d10, d20, d30, 
+                            d31, d01, d11, d21, 
+                            d22, d32, d02, d12, 
+                            d13, d23, d33, d03]
 
 
     in

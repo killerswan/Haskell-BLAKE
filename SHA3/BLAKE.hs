@@ -13,6 +13,7 @@ import Data.Int
 import Data.List  -- needed for zipWith4
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Vector.Storable as V
+import Control.Parallel.Strategies
 
 
 -- TODO: my function names often suck
@@ -182,7 +183,7 @@ blakeRound bitshift messageblock state rnd =
             let
                 s' = (V.!) state
             in
-                map g
+                parMap rdeepseq g
                     [(0, (s' 0, s' 4, s'  8, s' 12)),
                      (1, (s' 1, s' 5, s'  9, s' 13)),
                      (2, (s' 2, s' 6, s' 10, s' 14)),
@@ -200,7 +201,7 @@ blakeRound bitshift messageblock state rnd =
                         (c20,c21,c22,c23),
                         (c30,c31,c32,c33)] = 
 
-                map g
+                parMap rdeepseq g
                     [(4,(c00, c11, c22, c33)),
                      (5,(c10, c21, c32, c03)),
                      (6,(c20, c31, c02, c13)),

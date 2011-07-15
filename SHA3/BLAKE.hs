@@ -111,32 +111,35 @@ sigmaTable =
 
 -- generic bit shifting
 bitshift :: (Bits a, V.Storable a) 
-          => V.Vector a         -- constants
-          -> (Int,Int,Int,Int)  -- rotate by ...
+          => BLAKE a
           -> Int                -- i for which we're calculating G(i)
           -> (a,a,a,a)          -- 4 word col/diag
           -> V.Vector a         -- messageblock
           -> Int                -- round
           -> (a,a,a,a)          -- out: row or diagonal
-bitshift constants (rot0,rot1,rot2,rot3) ii (a,b,c,d) messageblock rnd = 
+bitshift config ii (a,b,c,d) messageblock rnd = 
                 let 
+                    -- configurable...
+                    constants' = constants config
+                    (rot0,rot1,rot2,rot3) = rotations config
+
                     -- get sigma
                     sigma n = sigmaTable !! (rnd `mod` 10) !! n
 
                     messageword n = messageblock V.! sigma n
-                    constant    n = constants V.! sigma n
+                    constant    n = constants' V.! sigma n
 
                     i2 = 2 * ii
             
                     -- compute the rnd
                     a'  = a  + b  + (messageword (i2) `xor` constant (i2 + 1))
-                    d'  = (d `xor` a') `rotate` rot0
+                    d'  = (d `xor` a') `rotateR` rot0
                     c'  = c + d' 
-                    b'  = (b `xor` c') `rotate` rot1
+                    b'  = (b `xor` c') `rotateR` rot1
                     a'' = a' + b' + (messageword (i2 + 1) `xor` constant (i2))
-                    d'' = (d' `xor` a'') `rotate` rot2
+                    d'' = (d' `xor` a'') `rotateR` rot2
                     c'' = c' + d'' 
-                    b'' = (b' `xor` c'') `rotate` rot3
+                    b'' = (b' `xor` c'') `rotateR` rot3
                 in
 
                 -- out
@@ -235,11 +238,15 @@ initialState constants h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress bitshift rounds constants s h (m,t) =
+compress config s h (m,t) =
     let 
+        -- configurable...
+        constants' = constants config
+        rounds' = rounds config
+
         -- e.g., do 14 rounds on this messageblock for 256-bit
         -- WARNING: this lazy foldl dramatically reduces heap use...
-        v = foldl (blakeRound bitshift m) (initialState constants h s t) [0..rounds-1]
+        v = foldl (blakeRound (bitshift config) m) (initialState constants' h s t) [0..rounds'-1]
 
         -- split it in half
         (v0,v1) = V.splitAt 8 v
@@ -274,18 +281,22 @@ toByteString size mydata =
 -- with a counter per block
 -- TODO: I'd rather slice the input instead of making new vectors
 blocks :: (Bits a, Integral a, Num a, V.Storable a) 
-        => Int64
-        -> Word8 
+        => BLAKE a
         -> B.ByteString 
         -> [( V.Vector a, [a] )]
 
-blocks wordSize paddingTerminator message' = 
+blocks config message' = 
     let
+        -- configurable...
+        wordSize' = wordSize config
+        paddingTerminator' = paddingTerminator config
+
+        -- recurse with accumulating counter
         loop counter message = 
             let 
 
                 -- split bytes at 16 words of type a
-                (m, ms) = B.splitAt (wordSize * 2) message
+                (m, ms) = B.splitAt (wordSize' * 2) message
 
                 -- block length in bits
                 len = 8 * B.length m
@@ -293,17 +304,17 @@ blocks wordSize paddingTerminator message' =
                 -- cumulative block length in bits
                 counter' = (counter :: Integer) + fromIntegral len
 
-                counterMSW   = fromIntegral $ counter' `shiftR` (fromIntegral wordSize :: Int)
+                counterMSW   = fromIntegral $ counter' `shiftR` (fromIntegral wordSize' :: Int)
                 counterLSW   = fromIntegral counter'
 
                 splitCounter = [counterMSW, counterLSW]
 
             in
-                if len < (16 * wordSize) || ms == B.empty
+                if len < (16 * wordSize') || ms == B.empty
                 then -- final
                     let
-                        simplePadding' = simplePadding len wordSize paddingTerminator
-                        final = makeWords wordSize (B.append m simplePadding') ++ splitCounter
+                        simplePadding' = simplePadding len wordSize' paddingTerminator'
+                        final = makeWords wordSize' (B.append m simplePadding') ++ splitCounter
 
                     in
                         case length final of
@@ -314,7 +325,7 @@ blocks wordSize paddingTerminator message' =
                             _  -> error "we have created a monster! padding --> nonsense"
                         
                 else -- regular
-                    ((V.fromList $ makeWords wordSize m), splitCounter) : loop counter' ms
+                    ((V.fromList $ makeWords wordSize' m), splitCounter) : loop counter' ms
 
     in
         loop 0 message'
@@ -373,36 +384,49 @@ simplePadding len wordSize paddingTerminator =
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
 
-blake bitshift rounds constants blocks initialValues salt message =
+blake config salt message =
     let
+      -- configurable...
+      rounds' = rounds config
+      constants' = constants config
+      initialValues' = initialValues config
     in
       if length salt /= 4
       then error "blake: your salt is not four words"
-      else V.toList $ foldl' (compress bitshift rounds constants salt) initialValues $ blocks message
+      else V.toList $ foldl' (compress config salt) initialValues' $ blocks config message
      
 
 -- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString
 
 
 data BLAKE a =
-   BLAKE { initialValues :: V.Vector a
-         , constants       :: V.Vector a
+   BLAKE { initialValues      :: V.Vector a
+         , constants          :: V.Vector a
+         , rotations          :: (Int, Int, Int, Int)
+         , rounds             :: Int
+         , paddingTerminator  :: Word8
+         , wordSize           :: Int64
          } 
 
-blake256_META = BLAKE { initialValues = initialValues256
-                      , constants = constants256
-                      }
 
 
 blake256 :: B.ByteString -> B.ByteString -> B.ByteString
 blake256 salt message = 
     let
+        config = BLAKE { initialValues = initialValues256
+                       , constants = constants256
+                       , rotations = (16,12,8,7)
+                       , rounds = 14
+                       , paddingTerminator = 0x01
+                       , wordSize = 32
+                       }
+
         -- BLAKE { constants = constants', initialValues = initialValues' } = blake256_META
-        constants' = constants blake256_META
-        initialValues' = initialValues blake256_META
+        constants' = constants config
+        initialValues' = initialValues config
 
         blake' :: [Word32] -> B.ByteString -> [Word32]
-        blake' = blake (bitshift constants256 (-16,-12,-8,-7)) 14 constants' (blocks 32 0x01) initialValues'
+        blake' = blake config
     in
         toByteString 32 $ blake' (makeWords 32 salt) message
 
@@ -411,8 +435,15 @@ blake256 salt message =
 blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
+        config = BLAKE { initialValues = initialValues512
+                       , constants = constants512
+                       , rotations = (32,25,16,11)
+                       , rounds = 16
+                       , paddingTerminator = 0x01
+                       , wordSize = 64
+                       }
         blake' :: [Word64] -> B.ByteString -> [Word64]
-        blake' = blake (bitshift constants512 (-32, -25, -16, -11)) 16 constants512 (blocks 64 0x01) initialValues512
+        blake' = blake config
     in
         toByteString 64 $ blake' (makeWords 64 salt) message
         
@@ -420,8 +451,16 @@ blake512 salt message =
 blake224 :: B.ByteString -> B.ByteString -> B.ByteString
 blake224 salt message =
     let
+        config = BLAKE { initialValues = initialValues224
+                       , constants = constants256
+                       , rotations = (16,12,8,7)
+                       , rounds = 14
+                       , paddingTerminator = 0x00
+                       , wordSize = 32
+                       }
+
         blake' :: [Word32] -> B.ByteString -> [Word32]
-        blake' s m = take 7 $ blake (bitshift constants256 (-16,-12,-8,-7)) 14 constants256 (blocks 32 0x00) initialValues224 s m
+        blake' s m = take 7 $ blake config s m
     in
         toByteString 32 $ blake' (makeWords 32 salt) message
 
@@ -429,8 +468,16 @@ blake224 salt message =
 blake384 :: B.ByteString -> B.ByteString -> B.ByteString
 blake384 salt message =
     let
+        config = BLAKE { initialValues = initialValues384
+                       , constants = constants512
+                       , rotations = (32,25,16,11)
+                       , rounds = 16
+                       , paddingTerminator = 0x00
+                       , wordSize = 64
+                       }
+
         blake' :: [Word64] -> B.ByteString -> [Word64]
-        blake' s m = take 6 $ blake (bitshift constants512 (-32,-25,-16,-11)) 16 constants512 (blocks  64 0x00) initialValues384 s m
+        blake' s m = take 6 $ blake config s m
     in
         toByteString 64 $ blake' (makeWords 64 salt) message
         

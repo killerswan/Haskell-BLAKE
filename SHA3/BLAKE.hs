@@ -153,10 +153,10 @@ bitshift config ii (a,b,c,d) messageblock rnd =
 -- TODO:
 -- Why is this slower with parallel column and then diagonal calcs? Laziness?
 -- With rdeepseq, particularly, this cuts the heap by about 2/3, though!
-blakeRound bitshift messageblock state rnd = 
+blakeRound config messageblock state rnd = 
     let 
         -- perform one G
-        g (ii,four) = bitshift ii four messageblock rnd
+        g (ii,four) = bitshift config ii four messageblock rnd
 
 
         -- apply G to columns
@@ -209,18 +209,9 @@ blakeRound bitshift messageblock state rnd =
 
 
 
--- initial 16 word state for compressing a block
+-- initial 16 word state
 -- here, my counter 't' contains [high,low] words 
 -- rather than reverse it in `blocks` below, i changed the numbering here
-{-
-initialState :: (Bits a, V.Storable a)
-             => V.Vector a
-             -> V.Vector a
-             -> [a]
-             -> [a]
-             -> V.Vector a
--}
-
 initialState constants h s t = 
     let
         partialConstants = V.take 8 constants
@@ -238,21 +229,23 @@ initialState constants h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
-compress config s h (m,t) =
+compress config salt h (m,t) =
     let 
         -- configurable...
         constants' = constants config
         rounds' = rounds config
 
+        initial = initialState constants' h salt t
+
         -- e.g., do 14 rounds on this messageblock for 256-bit
         -- WARNING: this lazy foldl dramatically reduces heap use...
-        v = foldl (blakeRound (bitshift config) m) (initialState constants' h s t) [0..rounds'-1]
+        v = foldl (blakeRound config m) initial [0..rounds'-1]
 
         -- split it in half
         (v0,v1) = V.splitAt 8 v
 
         -- salt
-        s' = V.fromList s
+        s' = V.fromList salt
         s'' = s' V.++ s'
     in
 
@@ -313,8 +306,8 @@ blocks config message' =
                 if len < (16 * wordSize') || ms == B.empty
                 then -- final
                     let
-                        simplePadding' = simplePadding len wordSize' paddingTerminator'
-                        final = makeWords wordSize' (B.append m simplePadding') ++ splitCounter
+                        padded = m `B.append` makePadding config len         -- ^ padded message block
+                        final  = makeWords wordSize' padded ++ splitCounter  -- ^ block including counter
 
                     in
                         case length final of
@@ -366,23 +359,32 @@ makeWords n ss = nfoldl (n `div` 8) growWord ss
 -- pad a last block of message as needed
 -- TODO: simplify
 
-simplePadding :: Int64         -- block bitlength
-              -> Int64         -- word bitlength
-              -> Word8         -- 0x01 or 0x00
-              -> B.ByteString  -- padded space, e.g. 0b1000...00001
+makePadding :: BLAKE a
+            -> Int64         -- block bitlength
+            -> B.ByteString  -- padded space, e.g. 0b1000...00001
 
-simplePadding len wordSize paddingTerminator = 
+makePadding config len = 
     let
-        targetbits = (14 * wordSize) - 2                       -- length zero padding will be used to build, 446 or 894
-        zerobits   = (targetbits - len) `mod` (16 * wordSize)  -- where len is bytes in this data
-        zerobytes  = (zerobits - 7 - 7) `div` 8                -- the number of 0x00 between the 0x80 and 0x01
-        zbs        = B.take zerobytes (B.repeat 0)             -- the bytestring of 0x00
+        -- configurable...
+        wordSize' = wordSize config
+        paddingTerminator' = paddingTerminator config
+
+        targetbits = (14 * wordSize') - 2                       -- length zero padding will be used to build, 446 or 894
+        zerobits   = (targetbits - len) `mod` (16 * wordSize')  -- where len is bytes in this data
+        zerobytes  = (zerobits - 7 - 7) `div` 8                 -- the number of 0x00 between the 0x80 and 0x01
+        zbs        = B.take zerobytes (B.repeat 0)              -- the bytestring of 0x00
     in 
         case zerobits of 
-            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator        -- ^ one byte -- TODO: THIS CASE IS NOT TESTED?
-            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator  -- ^ more bytes
+            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator'        -- ^ one byte -- TODO: THIS CASE IS NOT TESTED?
+            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator'  -- ^ more bytes
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
+
+blake :: (V.Storable a, Bits a, Integral a) 
+      => BLAKE a 
+      -> B.ByteString 
+      -> B.ByteString 
+      -> B.ByteString
 
 blake config salt message =
     let
@@ -390,15 +392,18 @@ blake config salt message =
       rounds' = rounds config
       constants' = constants config
       initialValues' = initialValues config
+      wordSize' = wordSize config
+      fromWtoB' = fromWtoB config
+
+      salt' = makeWords wordSize' salt
+      
     in
-      if length salt /= 4
+      if length salt' /= 4
       then error "blake: your salt is not four words"
-      else V.toList $ foldl' (compress config salt) initialValues' $ blocks config message
-     
-
--- TODO: refactor, now that we've converted both the messages, outputs, and salts to ByteString
+      else fromWtoB' $ V.toList $ foldl' (compress config salt') initialValues' $ blocks config message
 
 
+-- hold configuration data for different versions of BLAKE
 data BLAKE a =
    BLAKE { initialValues      :: V.Vector a
          , constants          :: V.Vector a
@@ -406,11 +411,10 @@ data BLAKE a =
          , rounds             :: Int
          , paddingTerminator  :: Word8
          , wordSize           :: Int64
+         , fromWtoB           :: [a] -> B.ByteString
          } 
 
 
-
-blake256 :: B.ByteString -> B.ByteString -> B.ByteString
 blake256 salt message = 
     let
         config = BLAKE { initialValues = initialValues256
@@ -419,20 +423,13 @@ blake256 salt message =
                        , rounds = 14
                        , paddingTerminator = 0x01
                        , wordSize = 32
+                       , fromWtoB = toByteString 32 :: [Word32] -> B.ByteString
                        }
-
-        -- BLAKE { constants = constants', initialValues = initialValues' } = blake256_META
-        constants' = constants config
-        initialValues' = initialValues config
-
-        blake' :: [Word32] -> B.ByteString -> [Word32]
-        blake' = blake config
     in
-        toByteString 32 $ blake' (makeWords 32 salt) message
+        blake config salt message
 
 
 
-blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
         config = BLAKE { initialValues = initialValues512
@@ -441,14 +438,12 @@ blake512 salt message =
                        , rounds = 16
                        , paddingTerminator = 0x01
                        , wordSize = 64
+                       , fromWtoB = toByteString 64 :: [Word64] -> B.ByteString
                        }
-        blake' :: [Word64] -> B.ByteString -> [Word64]
-        blake' = blake config
     in
-        toByteString 64 $ blake' (makeWords 64 salt) message
+        blake config salt message
         
 
-blake224 :: B.ByteString -> B.ByteString -> B.ByteString
 blake224 salt message =
     let
         config = BLAKE { initialValues = initialValues224
@@ -457,15 +452,12 @@ blake224 salt message =
                        , rounds = 14
                        , paddingTerminator = 0x00
                        , wordSize = 32
+                       , fromWtoB = toByteString 32 :: [Word32] -> B.ByteString
                        }
-
-        blake' :: [Word32] -> B.ByteString -> [Word32]
-        blake' s m = take 7 $ blake config s m
     in
-        toByteString 32 $ blake' (makeWords 32 salt) message
+        B.take 28 $ blake config salt message
 
 
-blake384 :: B.ByteString -> B.ByteString -> B.ByteString
 blake384 salt message =
     let
         config = BLAKE { initialValues = initialValues384
@@ -474,11 +466,9 @@ blake384 salt message =
                        , rounds = 16
                        , paddingTerminator = 0x00
                        , wordSize = 64
+                       , fromWtoB = toByteString 64 :: [Word64] -> B.ByteString
                        }
-
-        blake' :: [Word64] -> B.ByteString -> [Word64]
-        blake' s m = take 6 $ blake config s m
     in
-        toByteString 64 $ blake' (makeWords 64 salt) message
+        B.take 48 $ blake config salt message
         
 

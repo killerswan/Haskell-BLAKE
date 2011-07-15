@@ -14,7 +14,6 @@ import System.Console.GetOpt
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as E
 import Data.Word
-import System.Directory
 
 
 -- command line options

@@ -153,6 +153,12 @@ bitshift config ii (a,b,c,d) messageblock rnd =
 -- TODO:
 -- Why is this slower with parallel column and then diagonal calcs? Laziness?
 -- With rdeepseq, particularly, this cuts the heap by about 2/3, though!
+blakeRound :: (V.Storable a, Bits a)
+           => BLAKE a
+           -> V.Vector a
+           -> V.Vector a
+           -> Int
+           -> V.Vector a
 blakeRound config messageblock state rnd = 
     let 
         -- perform one G
@@ -161,9 +167,9 @@ blakeRound config messageblock state rnd =
 
         -- apply G to columns
         -- then rotate result back into order
-        applyColumns state = 
+        applyColumns state' = 
             let
-                s' = (V.!) state
+                s' = (V.!) state'
             in
                 --parMap rdeepseq g
                 map g
@@ -212,9 +218,19 @@ blakeRound config messageblock state rnd =
 -- initial 16 word state
 -- here, my counter 't' contains [high,low] words 
 -- rather than reverse it in `blocks` below, i changed the numbering here
-initialState constants h s t = 
+initialState :: (V.Storable a, Bits a)
+             => BLAKE a
+             -> V.Vector a
+             -> [a]
+             -> [a]
+             -> V.Vector a
+
+initialState config h s t = 
     let
-        partialConstants = V.take 8 constants
+        -- configurable...
+        constants' = constants config
+
+        partialConstants = V.take 8 constants'
         counter          = V.fromList [t!!1, t!!1, t!!0, t!!0]
         stateAndCount    = V.fromList s V.++ counter
         chainPlusStuff   = V.zipWith xor stateAndCount partialConstants
@@ -229,13 +245,19 @@ initialState constants h s t =
 -- s is a salt          0-3
 -- t is a counter       0-1
 -- return h'
+compress :: (V.Storable a, Bits a)
+         => BLAKE a
+         -> [a]
+         -> V.Vector a
+         -> (V.Vector a, [a])
+         -> V.Vector a
+
 compress config salt h (m,t) =
     let 
         -- configurable...
-        constants' = constants config
         rounds' = rounds config
 
-        initial = initialState constants' h salt t
+        initial = initialState config h salt t
 
         -- e.g., do 14 rounds on this messageblock for 256-bit
         -- WARNING: this lazy foldl dramatically reduces heap use...
@@ -282,7 +304,6 @@ blocks config message' =
     let
         -- configurable...
         wordSize' = wordSize config
-        paddingTerminator' = paddingTerminator config
 
         -- recurse with accumulating counter
         loop counter message = 
@@ -326,26 +347,15 @@ blocks config message' =
 
 -- how do I make it generic
 -- even though ByteString isn't an [a]?
--- experiment: extra function for the end
-{-
-nfoldl n fn1 fn2 xs =
-    let
-        (x, xs') = B.splitAt n xs
-    in
-        if (B.length x) < n || xs' == B.empty
-        then
-            [fn2 x]
-        else
-            fn1 x : nfoldl n fn1 fn2 xs'
--}
+nfoldl :: Int64 -> (B.ByteString -> a) -> B.ByteString -> [a]
 nfoldl n fn xs =
     let
         (x, xs') = B.splitAt n xs
     in
-        case x of
-            x | x == B.empty     -> []
-            x | B.length x < n   -> error "nfoldl: didn't have n remaining"
-            _                    -> fn x : nfoldl n fn xs'
+        case B.length x of
+            0              -> []
+            len | len < n  -> error "nfoldl: didn't have n remaining"
+            _              -> fn x : nfoldl n fn xs'
 
 
 -- turn a ByteString into an integer
@@ -354,6 +364,7 @@ growWord = B.foldl' shiftAcc 0
            where shiftAcc acc x = (fromIntegral acc `shift` 8) + fromIntegral x
 
 -- turn many ByteStrings into integers
+makeWords :: (Bits a, Integral a) => Int64 -> B.ByteString -> [a]
 makeWords n ss = nfoldl (n `div` 8) growWord ss
 
 
@@ -390,8 +401,6 @@ blake :: (V.Storable a, Bits a, Integral a)
 blake config salt message =
     let
       -- configurable...
-      rounds' = rounds config
-      constants' = constants config
       initialValues' = initialValues config
       wordSize' = wordSize config
       fromWtoB' = fromWtoB config
@@ -416,6 +425,7 @@ data BLAKE a =
          } 
 
 
+blake256 :: B.ByteString -> B.ByteString -> B.ByteString
 blake256 salt message = 
     let
         config = BLAKE { initialValues = initialValues256
@@ -430,6 +440,7 @@ blake256 salt message =
         blake config salt message
 
 
+blake512 :: B.ByteString -> B.ByteString -> B.ByteString
 blake512 salt message =
     let
         config = BLAKE { initialValues = initialValues512
@@ -442,8 +453,9 @@ blake512 salt message =
                        }
     in
         blake config salt message
-        
 
+        
+blake224 :: B.ByteString -> B.ByteString -> B.ByteString
 blake224 salt message =
     let
         config = BLAKE { initialValues = initialValues224
@@ -458,6 +470,7 @@ blake224 salt message =
         B.take 28 $ blake config salt message
 
 
+blake384 :: B.ByteString -> B.ByteString -> B.ByteString
 blake384 salt message =
     let
         config = BLAKE { initialValues = initialValues384

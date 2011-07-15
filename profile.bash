@@ -10,7 +10,7 @@ function qrm() {
 
 # COMPILE
 qrm "$EXE"
-ghc -Wall -threaded -O2 -prof -auto-all -rtsopts -fforce-recomp -o blakesum --make Main
+ghc -Wall -threaded -O2 -prof -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesum --make Main
 [ -x "$EXE" ] || exit 1
 
 # VERSION

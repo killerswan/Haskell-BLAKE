@@ -197,6 +197,8 @@ blakeRound config messageblock state rnd =
                      (6,(c20, c31, c02, c13)),
                      (7,(c30, c01, c12, c23))]
 
+        applyDiagonals _ = error "applyDiagonals: fail"
+
 
         -- unwind the diagonal results
         manualSpin [(d00,d01,d02,d03),
@@ -209,6 +211,7 @@ blakeRound config messageblock state rnd =
                             d22, d32, d02, d12, 
                             d13, d23, d33, d03]
 
+        manualSpin _ = error "manualSpin: fail"
 
     in
         manualSpin $ applyDiagonals $ applyColumns state

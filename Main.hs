@@ -20,7 +20,7 @@ import Data.Word
 data Options = Options { help      :: Bool
                        , check     :: Bool
                        , algorithm :: Integer
-                       , salt      :: B.ByteString
+                       , salt_     :: B.ByteString
                        }
 
 
@@ -29,7 +29,7 @@ defaultOpts :: Options
 defaultOpts = Options { help        = False
                       , check       = False
                       , algorithm   = 512
-                      , salt        = B.take 32 $ B.repeat 0
+                      , salt_       = B.take 32 $ B.repeat 0
                       }
 
 
@@ -57,7 +57,7 @@ options = [ Option "a" ["algorithm"]
                                      in 
                                      if (length $ filter (<0) s) > 0
                                      then error "please specify a salt of positive numbers"
-                                     else return opt { salt = B.pack s })
+                                     else return opt { salt_ = B.pack s })
                         "SALT")
                    "one positive uint per byte, salt: \"0,0,...0,0\""
 
@@ -107,13 +107,23 @@ textDigest digest =
 
 
 -- compute a hash, return text
+getHash256 :: B.ByteString -> B.ByteString -> T.Text
 getHash256 salt message = textDigest $ blake256 salt message
+getHash224 :: B.ByteString -> B.ByteString -> T.Text
 getHash224 salt message = textDigest $ blake224 salt message
+getHash512 :: B.ByteString -> B.ByteString -> T.Text
 getHash512 salt message = textDigest $ blake512 salt message
+getHash384 :: B.ByteString -> B.ByteString -> T.Text
 getHash384 salt message = textDigest $ blake384 salt message
 
 
 -- print out the BLAKE hash followed by the file name
+printHash :: (B.ByteString -> B.ByteString -> T.Text)
+          -> B.ByteString
+          -> String
+          -> B.ByteString
+          -> IO ()
+
 printHash getHash salt path message = 
     do
         hash <- return $ getHash salt message
@@ -121,6 +131,11 @@ printHash getHash salt path message =
 
 
 -- check one hash line (i.e., aas98d4a654...5756 *README.txt)
+checkHash :: (B.ByteString -> B.ByteString -> T.Text)
+          -> B.ByteString
+          -> T.Text
+          -> IO ()
+
 checkHash getHash salt line = 
     let
         [savedHash, path]  = T.splitOn (T.pack " *") line
@@ -138,6 +153,7 @@ checkHash getHash salt line =
 
 
 -- print hashes of given files
+printHashes :: Num a => a -> B.ByteString -> [FilePath] -> IO ()
 printHashes alg salt paths =
     let
         printHash' =
@@ -152,6 +168,7 @@ printHashes alg salt paths =
 
 
 -- check hashes within given files
+checkHashes :: Num a => a -> B.ByteString -> [FilePath] -> IO ()
 checkHashes alg salt paths =
     let
         -- check message (file) of hashes
@@ -169,6 +186,7 @@ checkHashes alg salt paths =
         fileMap ((checkHashes' salt) . T.lines . E.decodeUtf8) paths
 
 
+main :: IO ()
 main = 
     do 
         args <- getArgs
@@ -185,7 +203,7 @@ main =
         -- via destructuring assignment
         let Options { check     = check'
                     , algorithm = algorithm'
-                    , salt      = salt'
+                    , salt_     = salt'
                     } = opts
 
         let salt'' = case algorithm' of

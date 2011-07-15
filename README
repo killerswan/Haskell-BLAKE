@@ -1,10 +1,10 @@
-Haskell-BLAKE
+BLAKE
 Kevin Cantu <me@kevincantu.org>
 May 2011
 
 
-I have now implemented the BLAKE SHA-3 candidate algorithm in Haskell,
-and am teaching myself how to optimize it...
+An implementation of the BLAKE SHA-3 candidate hash algorithms in Haskell,
+including BLAKE-256, BLAKE-512, BLAKE-224, and BLAKE-384.
 
 
 NIST SHA-3:
@@ -17,7 +17,7 @@ The BLAKE proposal:
     http://131002.net/blake/blake.pdf
 
 TODO: 
-    - annotate more with haddock (for cabal, hackage)
-    - benchmark++
+    - annotate more with haddock (for hackage)
+    - more n00b optimization
 
 

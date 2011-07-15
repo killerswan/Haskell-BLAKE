@@ -1,12 +1,25 @@
 name:                blakelib
 version:             0.0
-synopsis:            <Project description>
-description:         <Project description>
+synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
+description:         
+   .
+   An implementation of the BLAKE SHA-3 candidate hash algorithms in Haskell,
+   including BLAKE-256, BLAKE-512, BLAKE-224, and BLAKE-384.
+   .
+   NIST SHA-3:
+       http://en.wikipedia.org/wiki/NIST_hash_function_competition
+   .
+   The BLAKE proposal: 
+       http://131002.net/blake/blake.pdf
+   .
 category:            Data
 license:             BSD3
 license-file:        LICENSE
-author:              Kevin Cantu
-maintainer:          me@kevincantu.org
+author:              Kevin Cantu <me@kevincantu.org>
+maintainer:          Kevin Cantu <me@kevincantu.org>
+copyright:           2011 Kevin Cantu
+homepage:            https://github.com/killerswan/Haskell-BLAKE
+bug-reports:         https://github.com/killerswan/Haskell-BLAKE/issues
 build-depends:       base
 build-type:          Simple
 ghc-options:         

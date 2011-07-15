@@ -1,0 +1,12 @@
+name:                blakelib
+version:             0.0
+synopsis:            <Project description>
+description:         <Project description>
+category:            Data
+license:             BSD3
+license-file:        LICENSE
+author:              Kevin Cantu
+maintainer:          me@kevincantu.org
+build-depends:       base
+build-type:          Simple
+ghc-options:         

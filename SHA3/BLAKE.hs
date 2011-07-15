@@ -5,7 +5,7 @@
 
 {-# LANGUAGE BangPatterns #-}
 
-module SHA3.BLAKE ( blake256, blake512, blake224, blake384, toByteString ) where
+module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
 
 import Data.Bits
 import Data.Word
@@ -259,14 +259,14 @@ compress config salt h (m,t) =
 
 -- convert words to bytes in a ByteString
 -- the word array input typically needs a type annotation
-toByteString :: (Integral a, Bits a) => Int -> [a] -> B.ByteString
+toByteString :: (Integral a, Bits a, V.Storable a) => Int -> V.Vector a -> B.ByteString
 toByteString size mydata =
     let
         octets = size `div` 8
         g w n = w `shiftR` (n*8)
-        toBytes w = map (g w) $ reverse [0..octets-1]
+        toBytes w = V.map (g w) $ V.fromList $ reverse [0..octets-1]
     in
-        B.pack $ map fromIntegral $ toBytes =<< mydata
+        B.pack $ V.toList $ V.map fromIntegral $ V.concatMap toBytes mydata
 
 
 -- BLAKE padding
@@ -353,6 +353,7 @@ growWord :: (Integral a, Bits a) => B.ByteString -> a
 growWord = B.foldl' shiftAcc 0
            where shiftAcc acc x = (fromIntegral acc `shift` 8) + fromIntegral x
 
+-- turn many ByteStrings into integers
 makeWords n ss = nfoldl (n `div` 8) growWord ss
 
 
@@ -400,7 +401,7 @@ blake config salt message =
     in
       if length salt' /= 4
       then error "blake: your salt is not four words"
-      else fromWtoB' $ V.toList $ foldl' (compress config salt') initialValues' $ blocks config message
+      else fromWtoB' $ foldl' (compress config salt') initialValues' $ blocks config message
 
 
 -- hold configuration data for different versions of BLAKE
@@ -411,7 +412,7 @@ data BLAKE a =
          , rounds             :: Int
          , paddingTerminator  :: Word8
          , wordSize           :: Int64
-         , fromWtoB           :: [a] -> B.ByteString
+         , fromWtoB           :: V.Vector a -> B.ByteString
          } 
 
 
@@ -423,11 +424,10 @@ blake256 salt message =
                        , rounds = 14
                        , paddingTerminator = 0x01
                        , wordSize = 32
-                       , fromWtoB = toByteString 32 :: [Word32] -> B.ByteString
+                       , fromWtoB = toByteString 32 :: V.Vector Word32 -> B.ByteString
                        }
     in
         blake config salt message
-
 
 
 blake512 salt message =
@@ -438,7 +438,7 @@ blake512 salt message =
                        , rounds = 16
                        , paddingTerminator = 0x01
                        , wordSize = 64
-                       , fromWtoB = toByteString 64 :: [Word64] -> B.ByteString
+                       , fromWtoB = toByteString 64 :: V.Vector Word64 -> B.ByteString
                        }
     in
         blake config salt message
@@ -452,7 +452,7 @@ blake224 salt message =
                        , rounds = 14
                        , paddingTerminator = 0x00
                        , wordSize = 32
-                       , fromWtoB = toByteString 32 :: [Word32] -> B.ByteString
+                       , fromWtoB = toByteString 32 :: V.Vector Word32 -> B.ByteString
                        }
     in
         B.take 28 $ blake config salt message
@@ -466,7 +466,7 @@ blake384 salt message =
                        , rounds = 16
                        , paddingTerminator = 0x00
                        , wordSize = 64
-                       , fromWtoB = toByteString 64 :: [Word64] -> B.ByteString
+                       , fromWtoB = toByteString 64 :: V.Vector Word64 -> B.ByteString
                        }
     in
         B.take 48 $ blake config salt message

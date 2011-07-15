@@ -19,18 +19,18 @@ import System.Directory
 
 -- command line options
 data Options = Options { help      :: Bool
-                       , check_     :: Bool
+                       , check     :: Bool
                        , algorithm :: Integer
-                       , salt_      :: [Integer] 
+                       , salt      :: B.ByteString
                        }
 
 
 -- command line defaults
 defaultOpts :: Options
-defaultOpts = Options { help = False
-                      , check_ = False
-                      , algorithm = 512
-                      , salt_ = [0,0,0,0]
+defaultOpts = Options { help        = False
+                      , check       = False
+                      , algorithm   = 512
+                      , salt        = B.take 32 $ B.repeat 0
                       }
 
 
@@ -49,18 +49,18 @@ options = [ Option "a" ["algorithm"]
                    "256, 512, 224, 384 (default: 512)"
 
           , Option "c" ["check"] 
-                   (NoArg $ \opt -> return opt { check_ = True })
+                   (NoArg $ \opt -> return opt { check = True })
                    "check saved hashes"
 
           , Option "s" ["salt"] 
                    (ReqArg
-                        (\arg opt -> let s = (read ("[" ++ arg ++ "]")) :: [Integer]
+                        (\arg opt -> let s = (read ("[" ++ arg ++ "]")) :: [Word8]
                                      in 
-                                     if (length $ filter (<0) s) > 0 || length s /= 4
+                                     if (length $ filter (<0) s) > 0
                                      then error "please specify a salt of positive numbers"
-                                     else return opt { salt_ = s })
+                                     else return opt { salt = B.pack s })
                         "SALT")
-                   "positive integer salt, as four words (default: 0,0,0,0)"
+                   "one positive uint per byte, salt: \"0,0,...0,0\""
 
           , Option "h" ["help"] 
                    (NoArg  $ \_ -> do
@@ -72,7 +72,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version K"
+                        hPutStrLn stderr $ me ++ " version L"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
@@ -108,10 +108,10 @@ textDigest digest =
 
 
 -- compute a hash, return text
-getHash256 salt message = textDigest $ blake256 (toByteString 32 salt) message
-getHash224 salt message = textDigest $ blake224 (toByteString 32 salt) message
-getHash512 salt message = textDigest $ blake512 (toByteString 64 salt) message
-getHash384 salt message = textDigest $ blake384 (toByteString 64 salt) message
+getHash256 salt message = textDigest $ blake256 salt message
+getHash224 salt message = textDigest $ blake224 salt message
+getHash512 salt message = textDigest $ blake512 salt message
+getHash384 salt message = textDigest $ blake384 salt message
 
 
 -- print out the BLAKE hash followed by the file name
@@ -184,17 +184,22 @@ main =
         
         -- assign the results
         -- via destructuring assignment
-        let Options { check_     = check
-                    , algorithm = algorithmBits
-                    , salt_      = salt
+        let Options { check     = check'
+                    , algorithm = algorithm'
+                    , salt      = salt'
                     } = opts
 
+        let salt'' = case algorithm' of
+                        256 | B.length salt' == 16 -> salt'
+                        512 | B.length salt' == 32 -> salt'
+                        _   -> error "salt should be 32 (default) or 16 bytes"
+
         -- are we in check mode?
-        let run = if check 
+        let run = if check'
                   then checkHashes -- ^ verify hashes listed in given files
                   else printHashes -- ^ output hashes of given files
 
         -- either check or print hashes
-        run algorithmBits salt nonOptions
+        run algorithm' salt'' nonOptions
 
 

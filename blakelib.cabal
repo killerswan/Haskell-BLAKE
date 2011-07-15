@@ -1,29 +1,27 @@
-Name:                blakelib
-Version:             0.0
-Synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
-Description:         
+name:                blakelib
+version:             0.0
+synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
+description:         
     .
-    An implementation of the BLAKE SHA-3 candidate hash algorithms in Haskell,
-    including BLAKE-256, BLAKE-512, BLAKE-224, and BLAKE-384.
+    This provides an implementation of the BLAKE SHA-3 candidate hash algorithms
+    in Haskell, including BLAKE-256, BLAKE-512, BLAKE-224, and BLAKE-384.
     .
-    NIST SHA-3:
-        http://en.wikipedia.org/wiki/NIST_hash_function_competition
+    The current version could use a speed boost or two, so be careful.
     .
-    The BLAKE proposal: 
-        http://131002.net/blake/blake.pdf
+    Based on the BLAKE proposal, here: http:\/\/131002.net\/blake\/blake.pdf
     .
-Category:            Data
-License:             BSD3
-License-file:        LICENSE
-Author:              Kevin Cantu <me@kevincantu.org>
-Maintainer:          Kevin Cantu <me@kevincantu.org>
-Copyright:           2011 Kevin Cantu
-Homepage:            https://github.com/killerswan/Haskell-BLAKE
-Bug-reports:         https://github.com/killerswan/Haskell-BLAKE/issues
-Build-Type:          Simple
-Cabal-Version:       >=1.2
+category:            Data
+license:             BSD3
+license-file:        LICENSE
+author:              Kevin Cantu <me@kevincantu.org>
+maintainer:          Kevin Cantu <me@kevincantu.org>
+copyright:           2011 Kevin Cantu
+source-repository:   https://github.com/killerswan/Haskell-BLAKE
+bug-reports:         https://github.com/killerswan/Haskell-BLAKE/issues
+build-type:          Simple
+cabal-version:       >=1.2
 
-Library
-   Build-Depends:    base, parallel, vector, bytestring
-   Exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
+library
+   build-bepends:    base >= 4 && < 5, vector >= 0 && < 1, bytestring >= 0 && < 1
+   exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
    ghc-options:      -Wall  

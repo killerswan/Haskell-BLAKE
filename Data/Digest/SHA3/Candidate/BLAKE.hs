@@ -13,7 +13,7 @@ import Data.Int
 import Data.List
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Vector.Storable as V
-import Control.Parallel.Strategies
+--import Control.Parallel.Strategies
 
 
 -- TODO: my function names often suck
@@ -330,8 +330,8 @@ blocks config message' =
                 if len < (16 * wordSize') || ms == B.empty
                 then -- final
                     let
-                        padded = m `B.append` makePadding config len         --^ padded message block
-                        final  = makeWords wordSize' padded ++ splitCounter  --^ block including counter
+                        padded = m `B.append` makePadding config len         -- ^ padded message block
+                        final  = makeWords wordSize' padded ++ splitCounter  -- ^ block including counter
 
                     in
                         case length final of
@@ -390,8 +390,8 @@ makePadding config len =
         zbs        = B.take zerobytes (B.repeat 0)              -- the bytestring of 0x00
     in 
         case zerobits of 
-            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator'        --^ one byte -- TODO: THIS CASE IS NOT TESTED?
-            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator'  --^ more bytes
+            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator'        -- ^ one byte -- TODO: THIS CASE IS NOT TESTED?
+            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator'  -- ^ more bytes
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
 

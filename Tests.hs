@@ -6,10 +6,9 @@
 import Test.HUnit
 import SHA3.BLAKE
 import qualified Data.ByteString.Lazy as B
-import Data.Bits
-import Data.Word
 
 
+zeroByteString :: Int -> B.ByteString
 zeroByteString n = B.pack $ take n $ repeat 0
 
 test_blake256 :: Test 

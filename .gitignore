@@ -1,4 +1,6 @@
 blakesum
+tests
+blakesumTS
 blakesum.exe
 *.swp
 *.exe
@@ -11,6 +13,7 @@ blakesum.exe
 *.prof
 *.aux
 *.ps
+*.eventlog
 testheap.data
 Next_700.pdf
 profiling/

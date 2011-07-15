@@ -28,7 +28,7 @@ function profileWithOption() {
     qrm "$EXEBASE"-"$1".hp
     qrm "$EXEBASE"-"$1".ps
 
-    time ./"$EXE" -a 512 "$FILE" +RTS -N -p $1
+    time ./"$EXE" -a 512 "$FILE" +RTS -N -sstderr -p $1 # -K100M -H100M
     [ -r "$EXEBASE".hp ] || exit 1
 
     mv "$EXEBASE".hp "$EXEBASE"-"$1".hp
@@ -37,9 +37,16 @@ function profileWithOption() {
     evince "$EXEBASE"-"$1".ps &
 }
 
+function runThreadscope() {
+   ghc -Wall -threaded -O2 -eventlog -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesumTS --make Main
+   time ./blakesumTS -a 512 "$FILE" +RTS -N -ls -sstderr # -K100M -H100M
+   threadscope blakesumTS.eventlog &
+}
+
 # -p -hd OR -hc OR -hy
 # -M1G -hy
 profileWithOption -hc
 profileWithOption -hy
 
+runThreadscope
 

@@ -4,7 +4,7 @@
 -- use at your own risk.
 
 import Test.HUnit
-import SHA3.BLAKE
+import Data.Digest.SHA3.Candidate.BLAKE
 import qualified Data.ByteString.Lazy as B
 
 

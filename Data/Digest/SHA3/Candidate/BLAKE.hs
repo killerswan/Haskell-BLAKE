@@ -5,7 +5,7 @@
 
 {-# LANGUAGE BangPatterns #-}
 
-module SHA3.BLAKE ( blake256, blake512, blake224, blake384 ) where
+module Data.Digest.SHA3.Candidate.BLAKE ( blake256, blake512, blake224, blake384 ) where
 
 import Data.Bits
 import Data.Word

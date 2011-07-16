@@ -5,7 +5,11 @@
 
 {-# LANGUAGE BangPatterns #-}
 
+-- | BLAKE is one of the finalists in the NIST SHA-3 hash function competition
+-- to replace SHA-1 and SHA-2.  
+-- This implementation is based on the paper found here: http:\/\/131002.net\/blake\/blake.pdf.
 module Data.Digest.SHA3.Candidate.BLAKE ( blake256, blake512, blake224, blake384 ) where
+
 
 import Data.Bits
 import Data.Word
@@ -330,8 +334,8 @@ blocks config message' =
                 if len < (16 * wordSize') || ms == B.empty
                 then -- final
                     let
-                        padded = m `B.append` makePadding config len         -- ^ padded message block
-                        final  = makeWords wordSize' padded ++ splitCounter  -- ^ block including counter
+                        padded = m `B.append` makePadding config len         -- padded message block
+                        final  = makeWords wordSize' padded ++ splitCounter  -- block including counter
 
                     in
                         case length final of
@@ -390,8 +394,8 @@ makePadding config len =
         zbs        = B.take zerobytes (B.repeat 0)              -- the bytestring of 0x00
     in 
         case zerobits of 
-            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator'        -- ^ one byte -- TODO: THIS CASE IS NOT TESTED?
-            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator'  -- ^ more bytes
+            z | z == 6 -> B.singleton $ 0x80 + paddingTerminator'        -- one byte -- TODO: THIS CASE IS NOT TESTED?
+            z | z >  6 -> 0x80 `B.cons` zbs `B.snoc` paddingTerminator'  -- more bytes
             _          -> error "assumption: adjustment of the input bits should be 0 `mod` 8 "
 
 
@@ -428,7 +432,12 @@ data BLAKE a =
          } 
 
 
-blake256 :: B.ByteString -> B.ByteString -> B.ByteString
+
+-- | Compute a BLAKE-256 digest from a given salt and message
+blake256 :: B.ByteString  -- ^ salt, 16 bytes
+         -> B.ByteString  -- ^ message
+         -> B.ByteString  -- ^ digest, 32 bytes
+
 blake256 salt message = 
     let
         config = BLAKE { initialValues = initialValues256
@@ -443,7 +452,11 @@ blake256 salt message =
         blake config salt message
 
 
-blake512 :: B.ByteString -> B.ByteString -> B.ByteString
+-- | Compute a BLAKE-512 digest from a given salt and message
+blake512 :: B.ByteString  -- ^ salt, 32 bytes
+         -> B.ByteString  -- ^ message
+         -> B.ByteString  -- ^ digest, 64 bytes
+
 blake512 salt message =
     let
         config = BLAKE { initialValues = initialValues512
@@ -458,7 +471,12 @@ blake512 salt message =
         blake config salt message
 
         
-blake224 :: B.ByteString -> B.ByteString -> B.ByteString
+-- | Compute a BLAKE-224 digest from a given salt and message
+-- (trucates output of a BLAKE-256)
+blake224 :: B.ByteString  -- ^ salt, 16 bytes
+         -> B.ByteString  -- ^ message
+         -> B.ByteString  -- ^ digest, 28 bytes
+
 blake224 salt message =
     let
         config = BLAKE { initialValues = initialValues224
@@ -473,7 +491,12 @@ blake224 salt message =
         B.take 28 $ blake config salt message
 
 
-blake384 :: B.ByteString -> B.ByteString -> B.ByteString
+-- | Compute a BLAKE-384 digest from a given salt and message
+-- (trucates output of a BLAKE-512)
+blake384 :: B.ByteString  -- ^ salt, 32 bytes
+         -> B.ByteString  -- ^ message
+         -> B.ByteString  -- ^ digest, 48 bytes
+
 blake384 salt message =
     let
         config = BLAKE { initialValues = initialValues384

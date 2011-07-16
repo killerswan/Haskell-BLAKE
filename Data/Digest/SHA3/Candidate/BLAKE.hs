@@ -7,7 +7,6 @@
 
 -- | BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
--- This implementation is based on the paper found here: http:\/\/131002.net\/blake\/blake.pdf.
 module Data.Digest.SHA3.Candidate.BLAKE ( blake256, blake512, blake224, blake384 ) where
 
 

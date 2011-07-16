@@ -95,9 +95,19 @@ constants512 =
       0x0801F2E2858EFC16, 0x636920D871574E69 ]
 
 
+{-
+test2d :: V.Vector [ Int ]
+test2d =
+    V.fromList [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ] 
+    ,[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ] 
+    ]
+-}
+
+
 -- BLAKE-256 permutations of {0..15}
-sigmaTable :: [[ Int ]]
+sigmaTable :: [ V.Vector Int ]
 sigmaTable =
+  map V.fromList
     [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ], 
      [ 14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3 ], 
      [ 11,  8, 12,  0,  5,  2, 15, 13, 10, 14,  3,  6,  7,  1,  9,  4 ], 
@@ -128,7 +138,7 @@ bitshift config ii (a,b,c,d) messageblock rnd =
                     (rot0,rot1,rot2,rot3) = rotations config
 
                     -- get sigma
-                    sigma n = sigmaTable !! (rnd `mod` 10) !! n
+                    sigma n = sigmaTable !! (rnd `mod` 10) V.! n
 
                     messageword n = messageblock V.! sigma n
                     constant    n = constants' V.! sigma n
@@ -171,21 +181,20 @@ blakeRound config messageblock state rnd =
 
         -- apply G to columns
         -- then rotate result back into order
-        applyColumns state' = 
-            let
-                s' = (V.!) state'
-            in
+        applyColumns [s00,s01,s02,s03,
+                      s10,s11,s12,s13,
+                      s20,s21,s22,s23,
+                      s30,s31,s32,s33] = 
+
                 --parMap rdeepseq g
                 map g
-                    [(0, (s' 0, s' 4, s'  8, s' 12)),
-                     (1, (s' 1, s' 5, s'  9, s' 13)),
-                     (2, (s' 2, s' 6, s' 10, s' 14)),
-                     (3, (s' 3, s' 7, s' 11, s' 15))]
+                    [(0, (s00, s10, s20, s30)),
+                     (0, (s01, s11, s21, s31)),
+                     (0, (s02, s12, s22, s32)),
+                     (0, (s03, s13, s23, s33))]
 
-                        {- 4, [0,5,10,15]
-                           5, [1,6,11,12]
-                           6, [2,7, 8,13]
-                           7, [3,4, 9,14] -}
+        applyColumns _ = error "applyColumns: fail"
+
 
         -- apply G to diagonals
         -- then rotate result back into order
@@ -210,15 +219,15 @@ blakeRound config messageblock state rnd =
                     (d20,d21,d22,d23),
                     (d30,d31,d32,d33)] = 
 
-                V.fromList [d00, d10, d20, d30, 
-                            d31, d01, d11, d21, 
-                            d22, d32, d02, d12, 
-                            d13, d23, d33, d03]
+                [d00, d10, d20, d30, 
+                 d31, d01, d11, d21, 
+                 d22, d32, d02, d12, 
+                 d13, d23, d33, d03]
 
         manualSpin _ = error "manualSpin: fail"
 
     in
-        manualSpin $ applyDiagonals $ applyColumns state
+        V.fromList $ manualSpin $ applyDiagonals $ applyColumns $ V.toList state
 
 
 

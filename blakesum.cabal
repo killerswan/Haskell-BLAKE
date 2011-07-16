@@ -1,5 +1,5 @@
 name:                blakesum
-version:             0.0
+version:             0.1
 synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
 description:         
     .
@@ -11,7 +11,8 @@ description:
     .
     Contributions and optimizations are welcome!
     .
-category:            Data
+category:            Cryptography
+stability:           experimental
 license:             BSD3
 license-file:        LICENSE
 author:              Kevin Cantu <me@kevincantu.org>

@@ -15,9 +15,10 @@ category:            Cryptography
 stability:           experimental
 license:             BSD3
 license-file:        LICENSE
-author:              Kevin Cantu <me@kevincantu.org>
-maintainer:          Kevin Cantu <me@kevincantu.org>
-copyright:           2011 Kevin Cantu
+author:              Kevin Cantu
+maintainer:          me@kevincantu.org
+copyright:           (c) 2011 Kevin Cantu
+homepage:            https://github.com/killerswan/Haskell-BLAKE
 bug-reports:         https://github.com/killerswan/Haskell-BLAKE/issues
 build-type:          Simple
 cabal-version:       >=1.6

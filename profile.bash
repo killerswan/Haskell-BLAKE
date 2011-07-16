@@ -43,10 +43,24 @@ function runThreadscope() {
    threadscope blakesumTS.eventlog &
 }
 
+function runVisualProf() {
+   SRC=Data/Digest/SHA3/Candidate/BLAKE.hs
+   RUN=Main
+   ARGS=Next_700.pdf
+   
+   visual-prof -px "$SRC" "$RUN" "$ARGS"
+   google-chrome "$SRC.html"
+}
+
 # -p -hd OR -hc OR -hy
 # -M1G -hy
 profileWithOption -hc
 profileWithOption -hy
 
 runThreadscope
+
+#runVisualProf
+
+qrm blakesum
+qrm blakesumTS
 

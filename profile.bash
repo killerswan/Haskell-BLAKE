@@ -54,13 +54,12 @@ function runVisualProf() {
 
 # -p -hd OR -hc OR -hy
 # -M1G -hy
-profileWithOption -hc
-profileWithOption -hy
 
 runThreadscope
 
-#runVisualProf
+runVisualProf
 
-qrm blakesum
-qrm blakesumTS
+profileWithOption -hc
+profileWithOption -hy
+
 

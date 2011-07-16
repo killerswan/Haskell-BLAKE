@@ -49,7 +49,7 @@ function runVisualProf() {
    ARGS=Next_700.pdf
    
    visual-prof -px "$SRC" "$RUN" "$ARGS"
-   google-chrome "$SRC.html"
+   google-chrome "$SRC.html" &
 }
 
 # -p -hd OR -hc OR -hy

@@ -10,11 +10,6 @@ function qrm() {
 
 # COMPILE
 qrm "$EXE"
-ghc -Wall -threaded -O2 -prof -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesum --make Main
-[ -x "$EXE" ] || exit 1
-
-# VERSION
-./"$EXE" --version
 
 # FILE TO TEST
 #FILE="testheap.data"  # about 840 megabytes
@@ -28,7 +23,11 @@ function profileWithOption() {
     qrm "$EXEBASE"-"$1".hp
     qrm "$EXEBASE"-"$1".ps
 
-    time ./"$EXE" -a 512 "$FILE" +RTS -N -sstderr -p $1 # -K100M -H100M
+    ghc -Wall -O2 -prof -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesum --make Main
+    [ -x "$EXE" ] || exit 1
+    ./"$EXE" --version
+
+    time ./"$EXE" -a 512 "$FILE" +RTS -sstderr -p $1 # -K100M -H100M
     [ -r "$EXEBASE".hp ] || exit 1
 
     mv "$EXEBASE".hp "$EXEBASE"-"$1".hp

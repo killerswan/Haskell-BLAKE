@@ -26,7 +26,7 @@ cabal-version:       >=1.6
 library
    build-depends:    base >= 4 && < 5, vector >= 0 && < 1, bytestring >= 0 && < 1
    exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
-   ghc-options:      -Wall
+   ghc-options:      -Wall -O2
 
 source-repository head
    type:       git

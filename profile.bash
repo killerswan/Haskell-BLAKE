@@ -37,7 +37,7 @@ function profileWithOption() {
 }
 
 function runThreadscope() {
-   ghc -Wall -threaded -O2 -eventlog -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesumTS --make Main
+   ghc -Wall -O2 -threaded -eventlog -auto-all -rtsopts -fforce-recomp -fspec-constr-count=15 -o blakesumTS --make Main
    time ./blakesumTS -a 512 "$FILE" +RTS -N -ls -sstderr # -K100M -H100M
    threadscope blakesumTS.eventlog &
 }

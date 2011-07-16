@@ -2,13 +2,18 @@ blakesum
 tests
 blakesumTS
 blakesum.exe
+Main
+Data/Digest/SHA3/Candidate/BLAKE.hs.html
+Main.hs.html
 *.swp
 *.exe
 *~
 *.hi
 *.o
 *.tmp
+*.scc
 *.png
+*.svg
 *.hp
 *.prof
 *.aux
@@ -17,3 +22,6 @@ blakesum.exe
 testheap.data
 Next_700.pdf
 profiling/
+dist/
+
+

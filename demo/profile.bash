@@ -10,6 +10,7 @@ function qrm() {
 
 # COMPILE
 qrm "$EXE"
+qrm "$EXE"TS
 
 # FILE TO TEST
 #FILE="testheap.data"  # about 840 megabytes

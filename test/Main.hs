@@ -11,10 +11,11 @@
 import Test.HUnit
 import Data.Digest.SHA3.Candidate.BLAKE
 import qualified Data.ByteString.Lazy as B
+import Data.Text.Lazy as T
 
 
 zeroByteString :: Int -> B.ByteString
-zeroByteString n = B.pack $ take n $ repeat 0
+zeroByteString n = B.pack $ Prelude.take n $ Prelude.repeat 0
 
 test_blake256 :: Test 
 test_blake256 = 
@@ -80,11 +81,20 @@ test_blake224 =
             (blake224 (zeroByteString 16) (zeroByteString 72))
 
 
+test_textDigest :: Test 
+test_textDigest = 
+    TestCase $ do
+        assertEqual "textDigest of 0xa080cb00987"
+            (T.pack "080cb00987")
+            (textDigest $ B.pack [0xa08, 0x0c, 0xb0, 0x09, 0x87])
+
+
 tests :: Test
 tests = TestList [ "BLAKE-256"            ~: test_blake256
                  , "BLAKE-512"            ~: test_blake512
                  , "BLAKE-224"            ~: test_blake224
                  , "BLAKE-384"            ~: test_blake384
+                 , "textDigest"           ~: test_textDigest
                  ]
 
 

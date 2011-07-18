@@ -1,4 +1,5 @@
 #!/bin/bash
+# TODO: NEED TO FIX THIS SO IT STILL PROFILES THE LIBRARY, TOO...
 
 EXEBASE=blakesum
 EXE="$EXEBASE"
@@ -11,6 +12,11 @@ function qrm() {
 # COMPILE
 qrm "$EXE"
 qrm "$EXE"TS
+
+cd ..
+cabal configure && cabal build && cabal install && cabal install -p
+cd -
+
 
 # FILE TO TEST
 #FILE="testheap.data"  # about 840 megabytes

@@ -1,5 +1,5 @@
 name:                blakesum
-version:             0.2
+version:             0.3
 synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
 description:         
     .
@@ -24,7 +24,10 @@ build-type:          Simple
 cabal-version:       >=1.6
 
 library
-   build-depends:    base >= 4 && < 5, vector >= 0 && < 1, bytestring >= 0 && < 1
+   build-depends:    base >= 4 && < 5,
+                     vector >= 0 && < 1,
+                     bytestring >= 0 && < 1,
+                     text >= 0 && < 1
    exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
    ghc-options:      -Wall -O2
 

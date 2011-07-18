@@ -8,7 +8,17 @@
 --
 -- | BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
-module Data.Digest.SHA3.Candidate.BLAKE ( blake256, blake512, blake224, blake384 ) where
+module Data.Digest.SHA3.Candidate.BLAKE ( 
+
+   -- * Digests
+     blake256
+   , blake512
+   , blake224
+   , blake384
+
+   -- * Simple display
+   , textDigest 
+   ) where
 
 
 import Data.Bits
@@ -17,6 +27,8 @@ import Data.Int
 import Data.List
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Vector.Storable as V
+import qualified Data.Text.Lazy as T
+import qualified Text.Printf as P
 --import Control.Parallel.Strategies
 
 
@@ -510,4 +522,19 @@ blake384 salt message =
     in
         B.take 48 $ blake config salt message
         
+
+
+-- | Convert a digest (or other ByteString) to hexadecimal digits
+-- | For example, to compute a digest of a message, "0x00", 
+-- using BLAKE-512 (faster on 64 bit systems),
+-- with a salt of 0, and get the digits in hex:
+--
+-- > import Data.Digest.SHA3.Candidate.BLAKE
+-- > import qualified Data.ByteString.Lazy as B
+-- >
+-- > textDigest $ blake512 (B.take 32 $ B.repeat 0) (B.singleton 0)
+textDigest :: B.ByteString -> T.Text
+textDigest digest = 
+   T.pack $ (P.printf "%02x") =<< B.unpack digest
+
 

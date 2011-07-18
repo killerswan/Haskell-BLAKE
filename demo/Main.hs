@@ -15,7 +15,6 @@ import Data.Digest.SHA3.Candidate.BLAKE
 import qualified Data.ByteString.Lazy as B
 import System
 import IO
-import Text.Printf
 import System.Console.GetOpt
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as E
@@ -77,7 +76,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version 0.0"
+                        hPutStrLn stderr $ me ++ " version 0.3"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
@@ -105,11 +104,6 @@ fileMapWithPath f paths =
 fileMap :: ( B.ByteString -> IO () ) -> [FilePath] -> IO ()
 fileMap f paths = fileMapWithPath (\_ -> f) paths
 
-
--- convert a digest into text
-textDigest :: B.ByteString -> T.Text
-textDigest digest = 
-    T.pack $ (printf "%02x") =<< B.unpack digest
 
 
 -- compute a hash, return text

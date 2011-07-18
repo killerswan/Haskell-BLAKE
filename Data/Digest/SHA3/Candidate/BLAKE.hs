@@ -1,10 +1,11 @@
--- Copyright (c) 2011 Kevin Cantu <me@kevincantu.org>
+-- |
+-- Copyright   : (c) 2011 Kevin Cantu
 --
--- A naive implementation of the Blake cryptographic hash: 
--- use at your own risk.
-
-{-# LANGUAGE BangPatterns #-}
-
+-- Module      : Data.Digest.SHA3.Candidate.BLAKE
+-- License     : BSD-style
+-- Maintainer  : Kevin Cantu <me@kevincantu.org>
+-- Stability   : experimental
+--
 -- | BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
 module Data.Digest.SHA3.Candidate.BLAKE ( blake256, blake512, blake224, blake384 ) where

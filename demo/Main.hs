@@ -1,7 +1,13 @@
--- Copyright (c) 2011 Kevin Cantu <me@kevincantu.org>
+-- |
+-- Copyright   : (c) 2011 Kevin Cantu
 --
--- A naive implementation of the Blake cryptographic hash: 
--- use at your own risk.
+-- License     : BSD-style
+-- Maintainer  : Kevin Cantu <me@kevincantu.org>
+-- Stability   : experimental
+--
+-- A demo program providing a command line `blakesum` utility which behaves 
+-- much like the sha512sum or shasum software available for various platforms
+
 
 module Main (main) where
 

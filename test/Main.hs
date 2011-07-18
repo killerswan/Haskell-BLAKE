@@ -1,7 +1,12 @@
--- Copyright (c) 2011 Kevin Cantu <me@kevincantu.org>
+-- |
+-- Copyright   : (c) 2011 Kevin Cantu
 --
--- A naive implementation of the Blake cryptographic hash: 
--- use at your own risk.
+-- License     : BSD-style
+-- Maintainer  : Kevin Cantu <me@kevincantu.org>
+-- Stability   : experimental
+--
+-- Testing...
+
 
 import Test.HUnit
 import Data.Digest.SHA3.Candidate.BLAKE

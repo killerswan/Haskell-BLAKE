@@ -27,7 +27,7 @@ function profileWithOption() {
     [ -x "$EXE" ] || exit 1
     ./"$EXE" --version
 
-    time ./"$EXE" -a 512 "$FILE" +RTS -sstderr -p $1 # -K100M -H100M
+    time ./"$EXE" -a 512 "$FILE" +RTS -sstderr -p $1 # -xt -K100M -H100M
     [ -r "$EXEBASE".hp ] || exit 1
 
     mv "$EXEBASE".hp "$EXEBASE"-"$1".hp
@@ -56,7 +56,7 @@ function runVisualProf() {
 
 runThreadscope
 
-runVisualProf
+#runVisualProf
 
 profileWithOption -hc
 profileWithOption -hy

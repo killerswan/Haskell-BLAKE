@@ -94,15 +94,6 @@ constants512 =
       0x0801F2E2858EFC16, 0x636920D871574E69 ]
 
 
-{-
-test2d :: V.Vector [ Int ]
-test2d =
-    V.fromList [[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ] 
-    ,[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 ] 
-    ]
--}
-
-
 -- BLAKE-256 permutations of {0..15}
 sigmaTable :: [ V.Vector Int ]
 sigmaTable =
@@ -180,17 +171,17 @@ blakeRound config messageblock state rnd =
 
         -- apply G to columns
         -- then rotate result back into order
-        applyColumns [s00,s01,s02,s03,
-                      s10,s11,s12,s13,
-                      s20,s21,s22,s23,
-                      s30,s31,s32,s33] = 
+        applyColumns [ s0, s1, s2, s3,
+                       s4, s5, s6, s7,
+                       s8, s9,s10,s11,
+                      s12,s13,s14,s15] = 
 
                 --parMap rdeepseq g
                 map g
-                    [(0, (s00, s10, s20, s30)),
-                     (0, (s01, s11, s21, s31)),
-                     (0, (s02, s12, s22, s32)),
-                     (0, (s03, s13, s23, s33))]
+                    [(0, (s0, s4, s8, s12)),
+                     (1, (s1, s5, s9, s13)),
+                     (2, (s2, s6, s10,s14)),
+                     (3, (s3, s7, s11,s15))]
 
         applyColumns _ = error "applyColumns: fail"
 

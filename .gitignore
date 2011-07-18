@@ -21,7 +21,7 @@ Main.hs.html
 *.eventlog
 testheap.data
 Next_700.pdf
-profiling/
+demo/profiling/
 dist/
 
 

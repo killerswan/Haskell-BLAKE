@@ -35,7 +35,7 @@ library
                      bytestring     >= 0 && < 1,
                      text           >= 0 && < 1,
                      vector         >= 0 && < 1
-   exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
+   exposed-modules:  Data.Digest.BLAKE
    ghc-options:      -Wall -O2
 
 executable blakesum
@@ -48,9 +48,10 @@ executable blakesum
                      text           >= 0 && < 1,
                      vector         >= 0 && < 1
 
-executable tests
-   main-is:          Main.hs
-   hs-source-dirs:   test
+test-suite blaketest
+   type:             detailed-1.0
+   test-module:      BLAKE
+   hs-source-dirs:   Tests
    build-depends:    base           >= 4 && < 5,
                      blakesum       == 0.4,
                      bytestring     >= 0 && < 1,

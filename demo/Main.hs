@@ -11,7 +11,7 @@
 
 module Main (main) where
 
-import Data.Digest.SHA3.Candidate.BLAKE
+import Data.Digest.BLAKE
 import qualified Data.ByteString.Lazy as B
 import System
 --import System.IO
@@ -77,7 +77,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version 0.3"
+                        hPutStrLn stderr $ me ++ " version 0.4"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]

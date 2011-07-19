@@ -8,7 +8,7 @@
 --
 -- BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
-module Data.Digest.SHA3.Candidate.BLAKE
+module Data.Digest.BLAKE
    ( 
    -- * Digests
      blake256
@@ -530,7 +530,7 @@ blake384 salt message =
 -- using BLAKE-512 (faster on 64 bit systems),
 -- with a salt of 0, and get the digits in hex:
 --
--- > import Data.Digest.SHA3.Candidate.BLAKE
+-- > import Data.Digest.BLAKE
 -- > import qualified Data.ByteString.Lazy as B
 -- >
 -- > textDigest $ blake512 (B.take 32 $ B.repeat 0) (B.singleton 0)

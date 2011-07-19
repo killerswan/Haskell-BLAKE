@@ -1,22 +1,22 @@
 -- |
+-- Module      : Data.Digest.SHA3.Candidate.BLAKE
 -- Copyright   : (c) 2011 Kevin Cantu
 --
--- Module      : Data.Digest.SHA3.Candidate.BLAKE
 -- License     : BSD-style
 -- Maintainer  : Kevin Cantu <me@kevincantu.org>
 -- Stability   : experimental
 --
--- | BLAKE is one of the finalists in the NIST SHA-3 hash function competition
+-- BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
-module Data.Digest.SHA3.Candidate.BLAKE ( 
-
+module Data.Digest.SHA3.Candidate.BLAKE
+   ( 
    -- * Digests
      blake256
    , blake512
    , blake224
    , blake384
 
-   -- * Simple display
+   -- * Text output
    , textDigest 
    ) where
 
@@ -525,7 +525,8 @@ blake384 salt message =
 
 
 -- | Convert a digest (or other ByteString) to hexadecimal digits
--- | For example, to compute a digest of a message, "0x00", 
+--
+-- For example, to compute a digest of a message, `0x00`, 
 -- using BLAKE-512 (faster on 64 bit systems),
 -- with a salt of 0, and get the digits in hex:
 --

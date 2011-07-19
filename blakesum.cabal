@@ -49,8 +49,8 @@ executable blakesum
                      vector         >= 0 && < 1
 
 test-suite blaketest
-   type:             detailed-1.0
-   test-module:      BLAKE
+   type:             exitcode-stdio-1.0
+   main-is:          Main.hs
    hs-source-dirs:   Tests
    build-depends:    base           >= 4 && < 5,
                      blakesum       == 0.4,

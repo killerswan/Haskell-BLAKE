@@ -7,9 +7,10 @@
 -- Stability   : experimental
 --
 -- Testing...
-module Tests.BLAKE 
+module Main
    (
-     tests
+     main
+   , tests
    ) where
 
 
@@ -103,12 +104,19 @@ tests =
       , "textDigest"           ~: test_textDigest
       ]
 
-{-
-tests' :: Test
-tests' = TestList tests
 
 main :: IO ()
-main = runTestTT tests' >>= putStrLn . show
--}
+main = 
+   do
+      result <- runTestTT $ TestList tests
+   
+      let Counts { cases    = cases_, 
+                   tried    = tried_,
+                   errors   = errors_,
+                   failures = failures_ } = result
+      
+      if failures_ > 0
+      then error "there was a test failure"
+      else (putStrLn . show) result
 
 

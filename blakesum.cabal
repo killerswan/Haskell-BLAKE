@@ -12,6 +12,8 @@ description:
     .
     Contributions and optimizations are welcome!
     .
+    This package installs both a library and an executable.
+    .
 category:            Cryptography
 stability:           experimental
 license:             BSD3
@@ -30,27 +32,29 @@ source-repository head
 
 library
    build-depends:    base           >= 4 && < 5,
-                     vector         >= 0 && < 1,
                      bytestring     >= 0 && < 1,
-                     text           >= 0 && < 1
+                     text           >= 0 && < 1,
+                     vector         >= 0 && < 1
    exposed-modules:  Data.Digest.SHA3.Candidate.BLAKE
    ghc-options:      -Wall -O2
 
-executable demo
+executable blakesum
    main-is:          Main.hs
    hs-source-dirs:   demo
-   build-depends:    blakesum,
-                     base           >= 4 && < 5,
+   build-depends:    base           >= 4 && < 5,
+                     blakesum       == 0.4,
                      bytestring     >= 0 && < 1,
-                     text           >= 0 && < 1
+                     haskell98      >= 1 && < 2,
+                     text           >= 0 && < 1,
+                     vector         >= 0 && < 1
 
 executable tests
    main-is:          Main.hs
    hs-source-dirs:   test
-   build-depends:    blakesum,
-                     base,
-                     HUnit          >= 1 && < 2,
+   build-depends:    base           >= 4 && < 5,
+                     blakesum       == 0.4,
                      bytestring     >= 0 && < 1,
+                     HUnit          >= 1 && < 2,
                      text           >= 0 && < 1
 
 

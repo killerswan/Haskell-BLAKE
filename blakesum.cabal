@@ -1,5 +1,5 @@
 name:                blakesum
-version:             0.3
+version:             0.4
 synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
 description:         
     .

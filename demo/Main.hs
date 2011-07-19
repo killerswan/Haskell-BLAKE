@@ -14,6 +14,7 @@ module Main (main) where
 import Data.Digest.SHA3.Candidate.BLAKE
 import qualified Data.ByteString.Lazy as B
 import System
+--import System.IO
 import IO
 import System.Console.GetOpt
 import qualified Data.Text.Lazy as T

@@ -1,5 +1,5 @@
 -- |
--- Module      : Data.Digest.SHA3.Candidate.BLAKE
+-- Module      : Tests.BLAKE
 -- Copyright   : (c) 2011 Kevin Cantu
 --
 -- License     : BSD-style
@@ -7,7 +7,7 @@
 -- Stability   : experimental
 --
 -- Testing...
-module Test.BLAKE 
+module Tests.BLAKE 
    (
      tests
    ) where

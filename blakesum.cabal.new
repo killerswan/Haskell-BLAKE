@@ -48,4 +48,14 @@ executable blakesum
                      text           >= 0 && < 1,
                      vector         >= 0 && < 1
 
+test-suite blaketest
+   type:             exitcode-stdio-1.0
+   main-is:          Main.hs
+   hs-source-dirs:   Tests
+   build-depends:    base           >= 4 && < 5,
+                     blakesum       == 0.4,
+                     bytestring     >= 0 && < 1,
+                     HUnit          >= 1 && < 2,
+                     text           >= 0 && < 1
+
 

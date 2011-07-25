@@ -12,6 +12,6 @@
 *.aux
 *.ps
 *.eventlog
-dist/
+*/dist/
 
 

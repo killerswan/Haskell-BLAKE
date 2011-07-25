@@ -1,23 +1,22 @@
 BLAKESUM
 Kevin Cantu <me@kevincantu.org>
-May 2011
+July 2011
 
 
 An implementation of the BLAKE SHA-3 candidate hash algorithms in Haskell,
 including BLAKE-256, BLAKE-512, BLAKE-224, and BLAKE-384.
 
+The folder `./blakesum` contains source for a `blakesum` library which 
+provides the hash functions.
 
-NIST SHA-3:
-    http://en.wikipedia.org/wiki/NIST_hash_function_competition
+The folder `./blakesum-demo` contains an executable program which demonstrates a use of these.
 
-BLAKE website:
-    http://131002.net/blake/
 
-The BLAKE proposal: 
-    http://131002.net/blake/blake.pdf
+NIST SHA-3:       http://en.wikipedia.org/wiki/NIST_hash_function_competition
+BLAKE website:    http://131002.net/blake/
+BLAKE proposal:   http://131002.net/blake/blake.pdf
 
-TODO: 
-    - annotate more with haddock (for hackage)
-    - more n00b optimization
+
+TODO: optimize a lot more...
 
 

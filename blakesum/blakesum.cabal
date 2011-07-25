@@ -1,5 +1,5 @@
 name:                blakesum
-version:             0.4
+version:             0.5
 synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
 description:         
     .
@@ -11,8 +11,6 @@ description:
     here: http:\/\/131002.net\/blake\/blake.pdf
     .
     Contributions and optimizations are welcome!
-    .
-    This package installs both a library and an executable.
     .
 category:            Cryptography
 stability:           experimental
@@ -36,16 +34,6 @@ library
                      text           >= 0 && < 1,
                      vector         >= 0 && < 1
    exposed-modules:  Data.Digest.BLAKE
-   ghc-options:      -Wall -O2
-
-executable blakesum
-   main-is:          Main.hs
-   hs-source-dirs:   demo
-   build-depends:    base           >= 4 && < 5,
-                     blakesum       == 0.4,
-                     bytestring     >= 0 && < 1,
-                     haskell98      >= 1 && < 2,
-                     text           >= 0 && < 1,
-                     vector         >= 0 && < 1
+   ghc-options:      -Wall -O2 -fspec-constr-count=15 
 
 

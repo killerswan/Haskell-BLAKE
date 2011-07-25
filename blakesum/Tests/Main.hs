@@ -1,5 +1,5 @@
 -- |
--- Module      : Tests.BLAKE
+-- Module      : Tests.Main
 -- Copyright   : (c) 2011 Kevin Cantu
 --
 -- License     : BSD-style
@@ -10,6 +10,7 @@
 module Main
    (
      main
+   , run
    , tests
    ) where
 
@@ -105,6 +106,12 @@ tests =
       ]
 
 
+-- run tests and print results
+run :: IO ()
+run = (runTestTT $ TestList tests) >>= putStrLn . show
+
+
+-- for exe return value testing?
 main :: IO ()
 main = 
    do

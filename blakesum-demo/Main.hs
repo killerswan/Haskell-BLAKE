@@ -1,4 +1,5 @@
 -- |
+-- Module      : Main
 -- Copyright   : (c) 2011 Kevin Cantu
 --
 -- License     : BSD-style
@@ -7,8 +8,6 @@
 --
 -- A demo program providing a command line `blakesum` utility which behaves 
 -- much like the sha512sum or shasum software available for various platforms
-
-
 module Main (main) where
 
 import Data.Digest.BLAKE
@@ -77,7 +76,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version 0.4"
+                        hPutStrLn stderr $ me ++ " version 0.5"
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
@@ -214,8 +213,8 @@ main =
 
         -- are we in check mode?
         let run = if check'
-                  then checkHashes -- ^ verify hashes listed in given files
-                  else printHashes -- ^ output hashes of given files
+                  then checkHashes -- verify hashes listed in given files
+                  else printHashes -- output hashes of given files
 
         -- either check or print hashes
         run algorithm' salt'' nonOptions

@@ -11,7 +11,9 @@
 *.prof
 *.aux
 *.ps
+*.pdf
 *.eventlog
-*/dist/
+dist/
+blakesum-demo/profiling/
 
 

@@ -15,5 +15,6 @@
 *.eventlog
 dist/
 blakesum-demo/profiling/
+Bench
 
 

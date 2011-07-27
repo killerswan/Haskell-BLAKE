@@ -1,5 +1,5 @@
 -- |
--- Module      : Data.Digest.BLAKE
+-- Module      : Data.Digest.BLAKE.Unsafe
 -- Copyright   : (c) 2011 Kevin Cantu
 --
 -- License     : BSD-style
@@ -8,7 +8,7 @@
 --
 -- BLAKE is one of the finalists in the NIST SHA-3 hash function competition
 -- to replace SHA-1 and SHA-2.  
-module Data.Digest.BLAKE
+module Data.Digest.BLAKE.Unsafe
    ( 
    -- * Digests
      blake256
@@ -29,13 +29,8 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.Vector.Storable as V
 import qualified Data.Text.Lazy as T
 import qualified Text.Printf as P
---import Control.Parallel.Strategies
-
-
--- TODO: my function names often suck
--- TODO: wrangle some types into submission
--- TODO: may need to add error handling for excessively long inputs per the BLAKE paper
-
+import qualified Data.ByteString.Unsafe as UB
+import qualified Data.Vector.Storable.Mutable as MV
 
 
 
@@ -189,7 +184,6 @@ blakeRound config messageblock state rnd =
                        s8, s9,s10,s11,
                       s12,s13,s14,s15] = 
 
-                --parMap rdeepseq g
                 map g
                     [(0, (s0, s4, s8, s12)),
                      (1, (s1, s5, s9, s13)),
@@ -206,7 +200,6 @@ blakeRound config messageblock state rnd =
                         (c20,c21,c22,c23),
                         (c30,c31,c32,c33)] = 
 
-                --parMap rdeepseq g
                 map g
                     [(4,(c00, c11, c22, c33)),
                      (5,(c10, c21, c32, c03)),

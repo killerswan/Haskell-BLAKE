@@ -1,5 +1,5 @@
 name:                blakesum-demo
-version:             0.5
+version:             0.5.1
 synopsis:            The BLAKE SHA-3 candidate hashes, in Haskell
 description:         
     .
@@ -32,7 +32,6 @@ executable blakesum
    build-depends:    base           >= 4 && < 5,
                      blakesum       >= 0 && < 1,
                      bytestring     >= 0 && < 1,
-                     haskell98      >= 1 && < 2,
                      text           >= 0 && < 1,
                      vector         >= 0 && < 1
 

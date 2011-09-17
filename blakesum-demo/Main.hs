@@ -10,15 +10,19 @@
 -- much like the sha512sum or shasum software available for various platforms
 module Main (main) where
 
-import Data.Digest.BLAKE
 import qualified Data.ByteString.Lazy as B
-import System
---import System.IO
-import IO
-import System.Console.GetOpt
+import Data.Digest.BLAKE
 import qualified Data.Text.Lazy as T
 import qualified Data.Text.Lazy.Encoding as E
 import Data.Word
+import System.Environment
+import System.Exit
+import System.IO
+import System.IO.Error
+import System.Console.GetOpt
+
+
+version = "0.5.1"
 
 
 -- command line options
@@ -46,7 +50,7 @@ options = [ Option "a" ["algorithm"]
                    (ReqArg
                         (\arg opt -> let alg = read arg :: Integer
                                      in
-                                       if elem alg [256,512,224,384]
+                                       if alg `elem` [256,512,224,384]
                                        then return opt { algorithm = alg }
                                        else error "please choose a working algorithm size")
                         "BITS")
@@ -58,9 +62,9 @@ options = [ Option "a" ["algorithm"]
 
           , Option "s" ["salt"] 
                    (ReqArg
-                        (\arg opt -> let s = (read ("[" ++ arg ++ "]")) :: [Word8]
+                        (\arg opt -> let s = read ("[" ++ arg ++ "]") :: [Word8]
                                      in 
-                                     if (length $ filter (<0) s) > 0
+                                     if length (filter (<0) s) > 0
                                      then error "please specify a salt of positive numbers"
                                      else return opt { salt_ = B.pack s })
                         "SALT")
@@ -76,7 +80,7 @@ options = [ Option "a" ["algorithm"]
           , Option "v" ["version"] 
                    (NoArg $ \_ -> do
                         me <- getProgName
-                        hPutStrLn stderr $ me ++ " version 0.5"
+                        hPutStrLn stderr $ me ++ " version " ++ version
                         exitWith ExitSuccess)
                    "display version and exit"
           ]
@@ -93,7 +97,7 @@ fileMapWithPath f paths =
         -- apply f to a file (or stdin, when "-")
         fileF :: FilePath -> IO ()
         fileF "-"  = stdinF
-        fileF path = (B.readFile path >>= f path) `catch` (\e -> hPutStrLn stderr (show e))
+        fileF path = (B.readFile path >>= f path) `catch` (hPutStrLn stderr . show )
     in
         case paths of
             [] -> stdinF
@@ -183,7 +187,7 @@ checkHashes alg salt paths =
                 384 -> checkHashesInMessage getHash384
                 _   -> error "unavailable algorithm size"
     in
-        fileMap ((checkHashes' salt) . T.lines . E.decodeUtf8) paths
+        fileMap (checkHashes' salt . T.lines . E.decodeUtf8) paths
 
 
 main :: IO ()

@@ -17,6 +17,18 @@ BLAKE website:    http://131002.net/blake/
 BLAKE proposal:   http://131002.net/blake/blake.pdf
 
 
+THE DEMO:
+$ blakesum -h
+blakesum
+  -a BITS  --algorithm=BITS  256, 512, 224, 384 (default: 512)
+  -c       --check           check saved hashes
+  -s SALT  --salt=SALT       one positive uint per byte, salt: "0,0,...0,0"
+  -h       --help            display this help and exit
+  -v       --version         display version and exit
+
+$ blakesum LICENSE 
+4f2e8f0379d419e5e116663f79b5f1e8516d82a26a3691e7ba693b875f6b789212d68b9731b9322ae392ad1ba950969d8f437e60ee90c0ae18df5e5ef2d99d59 *LICENSE
+
 TODO: optimize a lot more...
 
 

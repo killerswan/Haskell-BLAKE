@@ -157,7 +157,7 @@ checkHash getHash salt line =
 
 
 -- print hashes of given files
-printHashes :: Num a => a -> B.ByteString -> [FilePath] -> IO ()
+printHashes :: (Eq a, Num a) => a -> B.ByteString -> [FilePath] -> IO ()
 printHashes alg salt paths =
     let
         printHash' =
@@ -172,7 +172,7 @@ printHashes alg salt paths =
 
 
 -- check hashes within given files
-checkHashes :: Num a => a -> B.ByteString -> [FilePath] -> IO ()
+checkHashes :: (Eq a, Num a) => a -> B.ByteString -> [FilePath] -> IO ()
 checkHashes alg salt paths =
     let
         -- check message (file) of hashes
